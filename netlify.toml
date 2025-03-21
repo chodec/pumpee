@@ -1,0 +1,9 @@
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/assets/*"
+    [headers.values]
+    Content-Type = "text/javascript"
