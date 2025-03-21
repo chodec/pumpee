@@ -1,22 +1,22 @@
 [[headers]]
   for = "/*.js"
     [headers.values]
-    Content-Type = "text/javascript"
+    Content-Type = "application/javascript"
 
 [[headers]]
   for = "/*.mjs"
     [headers.values]
-    Content-Type = "text/javascript"
+    Content-Type = "application/javascript"
 
 [[headers]]
   for = "/assets/*.js"
     [headers.values]
-    Content-Type = "text/javascript"
+    Content-Type = "application/javascript"
 
 [[headers]]
   for = "/assets/*.mjs"
     [headers.values]
-    Content-Type = "text/javascript"
+    Content-Type = "application/javascript"
 
 [[redirects]]
   from = "/*"
