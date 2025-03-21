@@ -1,4 +1,3 @@
-// @ts-ignore
 import { Button } from "@/components/ui/Button";
 
 function App() {

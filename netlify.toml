@@ -1,9 +1,25 @@
 [[headers]]
-  for = "/*"
-    [headers.values]
-    Access-Control-Allow-Origin = "*"
-
-[[headers]]
-  for = "/assets/*"
+  for = "/*.js"
     [headers.values]
     Content-Type = "text/javascript"
+
+[[headers]]
+  for = "/*.mjs"
+    [headers.values]
+    Content-Type = "text/javascript"
+
+[[headers]]
+  for = "/assets/*.js"
+    [headers.values]
+    Content-Type = "text/javascript"
+
+[[headers]]
+  for = "/assets/*.mjs"
+    [headers.values]
+    Content-Type = "text/javascript"
+
+# Add redirects for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

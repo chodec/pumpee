@@ -4,7 +4,17 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/',
+  build: {
+    // This ensures proper module format
+    rollupOptions: {
+      output: {
+        format: 'es',
+        entryFileNames: '[name].[hash].mjs',
+        chunkFileNames: '[name].[hash].mjs',
+        assetFileNames: '[name].[hash].[ext]'
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
