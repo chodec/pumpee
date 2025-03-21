@@ -5,13 +5,13 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // This ensures proper module format
+    // Use a more compatible module format
     rollupOptions: {
       output: {
-        format: 'es',
-        entryFileNames: '[name].[hash].mjs',
-        chunkFileNames: '[name].[hash].mjs',
-        assetFileNames: '[name].[hash].[ext]'
+        format: 'system',
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
       }
     }
   },

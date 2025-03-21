@@ -18,7 +18,6 @@
     [headers.values]
     Content-Type = "text/javascript"
 
-# Add redirects for SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
