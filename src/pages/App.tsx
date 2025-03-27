@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { Link } from "react-router-dom";
 
 function App() {
   return (
@@ -14,6 +15,11 @@ function App() {
       <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">
         Plain button with Tailwind classes
       </button>
+      
+      {/* Link to login page */}
+      <Link to="/login">
+        <Button variant="primary">Go to Login</Button>
+      </Link>
       
       {/* Testing shadcn Button component */}
       <div className="flex flex-col gap-2 items-center mt-4">
