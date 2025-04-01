@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .qodo
 node_modules
+.env
 
 # Local Netlify folder
 .netlify
