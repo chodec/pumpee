@@ -1,42 +1,52 @@
-import { Button } from "@/components/ui/Button";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AuthProvider } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import UserTypeSelection from '@/pages/UserTypeSelection';
+import AuthCallback from '@/pages/AuthCallback';
+import ClientDashboard from '@/pages/ClientDashboard';
+import TrainerDashboard from '@/pages/TrainerDashboard';
+
+// Protected Route Component
+const ProtectedRoute = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    // Optional: Add a loading spinner or placeholder
+    return <div>Loading...</div>;
+  }
+
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
+};
 
 function App() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 gap-4">
-      <h1 className="text-3xl font-bold">Testing Tailwind</h1>
-      
-      {/* This div should be green if Tailwind is working */}
-      <div className="p-4 mb-4 mt-4 bg-green-500 text-white rounded-lg">
-        This div should be green with white text if Tailwind is working
-      </div>
-      
-      {/* Plain button with Tailwind classes */}
-      <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">
-        Plain button with Tailwind classes
-      </button>
-      
-      {/* Link to login page */}
-      <Link to="/login">
-        <Button variant="primary">Go to Login</Button>
-      </Link>
-      
-      {/* Testing shadcn Button component */}
-      <div className="flex flex-col gap-2 items-center mt-4">
-        <h2 className="text-xl font-semibold">shadcn/ui Button Components</h2>
-        <Button>Default Button</Button>
-        <Button variant="destructive">Destructive Button</Button>
-        <Button variant="outline">Outline Button</Button>
-        <Button variant="secondary">Secondary Button</Button>
-        <Button variant="ghost">Ghost Button</Button>
-        <Button variant="link">Link Button</Button>
-        <Button size="sm">Small Button</Button>
-        <Button size="lg">Large Button</Button>
-        <Button size="icon">Icon</Button>
-        <Button variant="outline" size="lg">Large Outline Button</Button>
-      </div>
-    </div>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/user-type-selection" element={<UserTypeSelection />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/client/dashboard" element={<ClientDashboard />} />
+            <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
+          </Route>
+
+          {/* Default Route */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+
+          {/* Optional: 404 Not Found Route */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
