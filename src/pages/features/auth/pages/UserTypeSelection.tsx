@@ -1,16 +1,36 @@
 // src/pages/UserTypeSelection.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import * as z from 'zod';
+
+// Supabase imports
+import { supabase } from '@/lib/supabaseClient';
+import type { User } from '@supabase/supabase-js';
+
+// Custom hooks
 import { useAuth } from '@/pages/features/auth/hooks/useAuth';
 
+// Type definitions with Zod for runtime validation
+const UserDataSchema = z.object({
+  email: z.string().email(),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  registrationMethod: z.string().optional()
+});
+
+const UserTypeSchema = z.enum(['client', 'trainer']);
+
+// Enhanced type for location state
 interface LocationState {
-  userData: {
-    email: string;
-    fullName: string;
-    registrationMethod: string;
-  };
+  userData?: z.infer<typeof UserDataSchema>;
+}
+
+// Centralized error handling
+class RegistrationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RegistrationError';
+  }
 }
 
 export default function UserTypeSelection() {
@@ -20,7 +40,7 @@ export default function UserTypeSelection() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   
-  // Get user data from location state (passed from OAuth handler or Registration)
+  // Safely extract user data from location state
   const state = location.state as LocationState;
   const userData = state?.userData;
   
@@ -31,140 +51,177 @@ export default function UserTypeSelection() {
     }
   }, [userData, user, navigate]);
 
+  // Centralized error handler
+  const handleError = (err: unknown) => {
+    const errorMessage = err instanceof Error 
+      ? err.message 
+      : 'An unexpected error occurred';
+    
+    console.error('Registration error:', err);
+    setError(errorMessage);
+    toast.error("Failed to complete registration. Please try again.");
+  };
+
+  // Validate user type input
+  const validateUserType = (userType: string): asserts userType is 'client' | 'trainer' => {
+    try {
+      UserTypeSchema.parse(userType);
+    } catch {
+      throw new RegistrationError('Invalid user type selected');
+    }
+  };
+
+  // Safely get or create subscription tier
+  const getSubscriptionTier = async () => {
+    const { data: tierData, error: tierFetchError } = await supabase
+      .from('subscription_tiers')
+      .select('id')
+      .limit(1);
+    
+    if (tierFetchError || !tierData || tierData.length === 0) {
+      throw new RegistrationError("No subscription tiers found. Please contact support.");
+    }
+    
+    return tierData[0].id;
+  };
+
+  // Create trainer record
+  const createTrainerRecord = async (user: User, subscriptionTierId: number) => {
+    const { data: trainerData, error: trainerError } = await supabase
+      .from('trainers')
+      .insert({
+        user_id: user.id,
+        subscription_tier_id: subscriptionTierId
+      })
+      .select();
+    
+    if (trainerError) {
+      throw new RegistrationError(`Failed to create trainer record: ${trainerError.message}`);
+    }
+    
+    return trainerData;
+  };
+
+  // Create or update user record
+  const upsertUserRecord = async (
+    user: User, 
+    userType: 'client' | 'trainer', 
+    userData?: LocationState['userData']
+  ) => {
+    // Validate input data
+    const safeUserData = userData 
+      ? UserDataSchema.parse(userData) 
+      : null;
+
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, user_type')
+      .eq('id', user.id)
+      .single();
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw new RegistrationError('Error checking existing user');
+    }
+
+    if (existingUser) {
+      // Update existing user
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          user_type: userType,
+          ...(safeUserData && {
+            email: safeUserData.email,
+            full_name: safeUserData.fullName
+          })
+        })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        throw new RegistrationError('Failed to update user');
+      }
+    } else {
+      // Insert new user
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: safeUserData?.email || user.email,
+          full_name: safeUserData?.fullName || user.user_metadata?.full_name || '',
+          phone_number: null,
+          registration_method: safeUserData?.registrationMethod || 'google',
+          user_type: userType
+        });
+      
+      if (insertError) {
+        throw new RegistrationError('Failed to create user record');
+      }
+    }
+  };
+
+  // Create client record
+  const createClientRecord = async (user: User) => {
+    // Check if client record already exists
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!existingClient) {
+      const { error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          user_id: user.id
+        });
+      
+      if (clientError) {
+        throw new RegistrationError('Failed to create client record');
+      }
+    }
+  };
+
   const handleUserTypeSelection = async (userType: 'client' | 'trainer') => {
     try {
+      // Reset previous states
       setIsLoading(true);
       setError(null);
       
-      console.log("Starting user type selection process for:", userType);
+      // Validate user type
+      validateUserType(userType);
       
-      // Get current authenticated user if not available through useAuth
-      const currentUser = user || (await supabase.auth.getUser()).data.user;
+      // Get current authenticated user
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       
-      if (!currentUser) throw new Error("No authenticated user found");
-      console.log("Current user:", currentUser);
-      
-      // 1. Check if user already exists in users table
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id, user_type')
-        .eq('id', currentUser.id)
-        .single();
-      
-      console.log("Check for existing user:", existingUser, checkError);
-      
-      // 2. Insert or update user in users table
-      if (existingUser) {
-        console.log("User exists, updating user_type");
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({ user_type: userType })
-          .eq('id', currentUser.id);
-          
-        if (updateError) {
-          console.error("Error updating user:", updateError);
-          throw updateError;
-        }
-      } else {
-        console.log("Creating new user record");
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: currentUser.id,
-            email: currentUser.email,
-            full_name: userData?.fullName || currentUser.user_metadata?.full_name || '',
-            phone_number: null,
-            registration_method: userData?.registrationMethod || 'google',
-            user_type: userType
-          });
-          
-        if (insertError) {
-          console.error("Error inserting user:", insertError);
-          throw insertError;
-        }
+      if (authError || !currentUser) {
+        throw new RegistrationError('No authenticated user found');
       }
       
+      // Upsert user record
+      await upsertUserRecord(currentUser, userType, userData);
+      
+      // Handle specific user type logic
       if (userType === 'trainer') {
-        console.log("Creating trainer record");
+        const subscriptionTierId = await getSubscriptionTier();
+        await createTrainerRecord(currentUser, subscriptionTierId);
         
-        try {
-          // Get an existing subscription tier
-          const { data: tierData, error: tierFetchError } = await supabase
-            .from('subscription_tiers')
-            .select('id')
-            .limit(1);
-          
-          if (tierFetchError || !tierData || tierData.length === 0) {
-            throw new Error("No subscription tiers found. Please contact support.");
-          }
-          
-          // Use the first available subscription tier
-          const subscriptionTierId = tierData[0].id;
-          
-          // Create the trainer record with the subscription tier ID
-          const { data: trainerData, error: trainerError } = await supabase
-            .from('trainers')
-            .insert({
-              user_id: currentUser.id,
-              subscription_tier_id: subscriptionTierId
-            })
-            .select();
-          
-          console.log("Trainer insert result:", trainerData, trainerError);
-          
-          if (trainerError) throw trainerError;
-          
-          toast.success("Successfully registered as a trainer!");
-          navigate('/trainer/dashboard');
-          
-        } catch (err) {
-          console.error("Error creating trainer:", err);
-          throw new Error(`Failed to create trainer record: ${err.message}`);
-        }
-      }
-      else {
-        console.log("Creating client record");
-        
-        // First check if client record already exists
-        const { data: existingClient } = await supabase
-          .from('clients')
-          .select('user_id')
-          .eq('user_id', currentUser.id)
-          .single();
-          
-        if (existingClient) {
-          console.log("Client record already exists");
-        } else {
-          // Create a client record
-          const { error: clientError } = await supabase
-            .from('clients')
-            .insert({
-              user_id: currentUser.id
-            });
-            
-          console.log("Client insert result:", clientError);
-          
-          if (clientError) {
-            console.error("Error creating client:", clientError);
-            throw clientError;
-          }
-        }
+        toast.success("Successfully registered as a trainer!");
+        navigate('/trainer/dashboard');
+      } else {
+        await createClientRecord(currentUser);
         
         toast.success("Successfully registered as a client!");
-        navigate('/client/dashboard'); // Make sure this path matches your route definition
+        navigate('/client/dashboard');
       }
-      
     } catch (err) {
-      console.error('Error creating account:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      toast.error("Failed to complete registration. Please try again.");
+      handleError(err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Prevent rendering if no user data
   if (!userData && !user) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
@@ -181,32 +238,41 @@ export default function UserTypeSelection() {
       <div className="w-full md:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="mb-10 text-center">
-            <h2 className="text-2xl font-bold">Welcome to Pumpee, {userData?.fullName || user?.user_metadata?.full_name || 'there'}!</h2>
+            <h2 className="text-2xl font-bold">
+              Welcome to Pumpee, {userData?.fullName || user?.user_metadata?.full_name || 'there'}!
+            </h2>
             <p className="text-gray-600 mt-2">
               Tell us how you'll be using Pumpee
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div 
+              role="alert"
+              className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded"
+            >
               {error}
             </div>
           )}
 
           <div className="space-y-4">
             <button
+              type="button"
               onClick={() => handleUserTypeSelection('client')}
               disabled={isLoading}
-              className="w-full p-4 bg-white border-2 border-blue-500 rounded-lg flex flex-col items-center justify-center hover:bg-blue-50 transition-colors"
+              aria-busy={isLoading}
+              className="w-full p-4 bg-white border-2 border-blue-500 rounded-lg flex flex-col items-center justify-center hover:bg-blue-50 transition-colors disabled:opacity-50"
             >
               <span className="text-xl font-medium text-blue-500">I am a Client</span>
               <span className="text-gray-600 mt-1">I want to work with a trainer</span>
             </button>
 
             <button
+              type="button"
               onClick={() => handleUserTypeSelection('trainer')}
               disabled={isLoading}
-              className="w-full p-4 bg-white border-2 border-[#ff7f0e] rounded-lg flex flex-col items-center justify-center hover:bg-orange-50 transition-colors"
+              aria-busy={isLoading}
+              className="w-full p-4 bg-white border-2 border-[#ff7f0e] rounded-lg flex flex-col items-center justify-center hover:bg-orange-50 transition-colors disabled:opacity-50"
             >
               <span className="text-xl font-medium text-[#ff7f0e]">I am a Trainer</span>
               <span className="text-gray-600 mt-1">I want to help clients achieve their goals</span>
@@ -214,7 +280,10 @@ export default function UserTypeSelection() {
           </div>
 
           {isLoading && (
-            <div className="mt-6 text-center text-gray-600">
+            <div 
+              aria-live="polite"
+              className="mt-6 text-center text-gray-600"
+            >
               Setting up your account...
             </div>
           )}
