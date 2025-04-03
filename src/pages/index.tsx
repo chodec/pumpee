@@ -10,6 +10,7 @@ import Legal from '@/pages/Legal'
 import UserTypeSelection from '@/pages/UserTypeSelection'
 import ClientDashboard from '@/pages/ClientDashboard'
 import TrainerDashboard from '@/pages/TrainerDashboard'
+import AuthCallback from '@/pages/AuthCallback'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/legal" element={<Legal />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/user-type-selection" element={<UserTypeSelection />} />
           <Route path="/client/dashboard" element={<ClientDashboard />} />
           <Route path="/trainer/dashboard" element={<TrainerDashboard />} />

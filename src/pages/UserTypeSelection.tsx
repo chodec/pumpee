@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LocationState {
   userData: {
@@ -17,6 +18,7 @@ export default function UserTypeSelection() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   
   // Get user data from location state (passed from OAuth handler or Registration)
   const state = location.state as LocationState;
@@ -24,39 +26,50 @@ export default function UserTypeSelection() {
   
   useEffect(() => {
     // Redirect to register if no user data is provided
-    if (!userData) {
+    if (!userData && !user) {
       navigate('/register');
     }
-  }, [userData, navigate]);
+  }, [userData, user, navigate]);
 
   const handleUserTypeSelection = async (userType: 'client' | 'trainer') => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get current authenticated user if not available through useAuth
+      const currentUser = user || (await supabase.auth.getUser()).data.user;
       
-      if (!user) throw new Error("No authenticated user found");
+      if (!currentUser) throw new Error("No authenticated user found");
       
-      // Create record in the appropriate table
-      const { error } = await supabase
-        .from(userType === 'client' ? 'clients' : 'trainers')
+      // 1. First create record in the users table
+      const { error: userError } = await supabase
+        .from('users')
         .insert({
-          user_id: user.id,
-          full_name: userData.fullName || user.user_metadata?.full_name || '',
-          email: user.email,
-          registration_method: userData.registrationMethod,
-          // You can add other required fields with default values here
+          id: currentUser.id,
+          email: currentUser.email,
+          full_name: userData?.fullName || currentUser.user_metadata?.full_name || '',
+          phone_number: null, // Can be updated later in profile
+          registration_method: userData?.registrationMethod || 'google',
+          user_type: userType
         });
         
-      if (error) throw error;
+      if (userError) throw userError;
+      
+      // 2. Then create record in the role-specific table
+      const { error: roleError } = await supabase
+        .from(userType === 'client' ? 'clients' : 'trainers')
+        .insert({
+          user_id: currentUser.id
+          // No other fields needed here since they're now in users table
+        });
+        
+      if (roleError) throw roleError;
       
       // Show success message
       toast.success(`Successfully registered as a ${userType}!`);
       
       // Redirect to the appropriate dashboard
-      navigate(`/${userType}/dashboard`);
+      navigate(userType === 'client' ? '/client/dashboard' : '/trainer/dashboard');
       
     } catch (err) {
       console.error('Error creating account:', err);
@@ -67,10 +80,7 @@ export default function UserTypeSelection() {
     }
   };
 
-  if (!userData) {
-    return null; // Will redirect via useEffect
-  }
-
+  // Rest of your component remains the same
   return (
     <div className="flex h-screen bg-white">
       {/* Left section - Blue sidebar with app info */}
@@ -85,7 +95,7 @@ export default function UserTypeSelection() {
       <div className="w-full md:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="mb-10 text-center">
-            <h2 className="text-2xl font-bold">Welcome to Pumpee, {userData.fullName}!</h2>
+            <h2 className="text-2xl font-bold">Welcome to Pumpee, {userData?.fullName || user?.user_metadata?.full_name || 'there'}!</h2>
             <p className="text-gray-600 mt-2">
               Tell us how you'll be using Pumpee
             </p>
@@ -110,9 +120,9 @@ export default function UserTypeSelection() {
             <button
               onClick={() => handleUserTypeSelection('trainer')}
               disabled={isLoading}
-              className="w-full p-4 bg-white border-2 border-blue-500 rounded-lg flex flex-col items-center justify-center hover:bg-blue-50 transition-colors"
+              className="w-full p-4 bg-white border-2 border-[#ff7f0e] rounded-lg flex flex-col items-center justify-center hover:bg-orange-50 transition-colors"
             >
-              <span className="text-xl font-medium text-blue-500">I am a Trainer</span>
+              <span className="text-xl font-medium text-[#ff7f0e]">I am a Trainer</span>
               <span className="text-gray-600 mt-1">I want to help clients achieve their goals</span>
             </button>
           </div>

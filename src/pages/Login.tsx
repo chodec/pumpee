@@ -31,61 +31,54 @@ export default function Login() {
   });
 
   // Handle email login
-  async function onSubmit(values: LoginFormValues) {
-    setIsLoading(true);
-    try {
-      // Attempt to sign in
-      const { error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
+// Handle email login
+async function onSubmit(values: LoginFormValues) {
+  setIsLoading(true);
+  try {
+    // Attempt to sign in
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
 
-      if (error) {
-        throw error;
-      }
+    if (error) {
+      throw error;
+    }
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast.error('Authentication failed');
-        return;
-      }
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error('Authentication failed');
+      return;
+    }
 
-      // Check if user exists in clients table
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('email', user.email)
-        .single();
-      
-      if (clientData) {
+    // Check if user exists in users table and get their type
+    const { data: userData } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('id', user.id)
+      .single();
+    
+    if (userData) {
+      // User exists, redirect based on their type
+      if (userData.user_type === 'client') {
         navigate('/client/dashboard');
-        return;
-      }
-      
-      // Check if user exists in trainers table
-      const { data: trainerData } = await supabase
-        .from('trainers')
-        .select('*')
-        .eq('email', user.email)
-        .single();
-      
-      if (trainerData) {
+      } else if (userData.user_type === 'trainer') {
         navigate('/trainer/dashboard');
-        return;
       }
-      
+    } else {
       // If no user type found, redirect to user type selection
       navigate('/user-type-selection');
-      
-    } catch (error) {
-      console.error("Login failed:", error);
-      toast.error("Login failed. Please check your credentials.");
-    } finally {
-      setIsLoading(false);
     }
+    
+  } catch (error) {
+    console.error("Login failed:", error);
+    toast.error("Login failed. Please check your credentials.");
+  } finally {
+    setIsLoading(false);
   }
+}
 
   const handleGoogleLogin = async () => {
     try {
