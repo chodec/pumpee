@@ -36,40 +36,123 @@ export default function UserTypeSelection() {
       setIsLoading(true);
       setError(null);
       
+      console.log("Starting user type selection process for:", userType);
+      
       // Get current authenticated user if not available through useAuth
       const currentUser = user || (await supabase.auth.getUser()).data.user;
       
       if (!currentUser) throw new Error("No authenticated user found");
+      console.log("Current user:", currentUser);
       
-      // 1. First create record in the users table
-      const { error: userError } = await supabase
+      // 1. Check if user already exists in users table
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .insert({
-          id: currentUser.id,
-          email: currentUser.email,
-          full_name: userData?.fullName || currentUser.user_metadata?.full_name || '',
-          phone_number: null, // Can be updated later in profile
-          registration_method: userData?.registrationMethod || 'google',
-          user_type: userType
-        });
+        .select('id, user_type')
+        .eq('id', currentUser.id)
+        .single();
+      
+      console.log("Check for existing user:", existingUser, checkError);
+      
+      // 2. Insert or update user in users table
+      if (existingUser) {
+        console.log("User exists, updating user_type");
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ user_type: userType })
+          .eq('id', currentUser.id);
+          
+        if (updateError) {
+          console.error("Error updating user:", updateError);
+          throw updateError;
+        }
+      } else {
+        console.log("Creating new user record");
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: currentUser.id,
+            email: currentUser.email,
+            full_name: userData?.fullName || currentUser.user_metadata?.full_name || '',
+            phone_number: null,
+            registration_method: userData?.registrationMethod || 'google',
+            user_type: userType
+          });
+          
+        if (insertError) {
+          console.error("Error inserting user:", insertError);
+          throw insertError;
+        }
+      }
+      
+      if (userType === 'trainer') {
+        console.log("Creating trainer record");
         
-      if (userError) throw userError;
-      
-      // 2. Then create record in the role-specific table
-      const { error: roleError } = await supabase
-        .from(userType === 'client' ? 'clients' : 'trainers')
-        .insert({
-          user_id: currentUser.id
-          // No other fields needed here since they're now in users table
-        });
+        try {
+          // Get an existing subscription tier
+          const { data: tierData, error: tierFetchError } = await supabase
+            .from('subscription_tiers')
+            .select('id')
+            .limit(1);
+          
+          if (tierFetchError || !tierData || tierData.length === 0) {
+            throw new Error("No subscription tiers found. Please contact support.");
+          }
+          
+          // Use the first available subscription tier
+          const subscriptionTierId = tierData[0].id;
+          
+          // Create the trainer record with the subscription tier ID
+          const { data: trainerData, error: trainerError } = await supabase
+            .from('trainers')
+            .insert({
+              user_id: currentUser.id,
+              subscription_tier_id: subscriptionTierId
+            })
+            .select();
+          
+          console.log("Trainer insert result:", trainerData, trainerError);
+          
+          if (trainerError) throw trainerError;
+          
+          toast.success("Successfully registered as a trainer!");
+          navigate('/trainer/dashboard');
+          
+        } catch (err) {
+          console.error("Error creating trainer:", err);
+          throw new Error(`Failed to create trainer record: ${err.message}`);
+        }
+      }
+      else {
+        console.log("Creating client record");
         
-      if (roleError) throw roleError;
-      
-      // Show success message
-      toast.success(`Successfully registered as a ${userType}!`);
-      
-      // Redirect to the appropriate dashboard
-      navigate(userType === 'client' ? '/client/dashboard' : '/trainer/dashboard');
+        // First check if client record already exists
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('user_id')
+          .eq('user_id', currentUser.id)
+          .single();
+          
+        if (existingClient) {
+          console.log("Client record already exists");
+        } else {
+          // Create a client record
+          const { error: clientError } = await supabase
+            .from('clients')
+            .insert({
+              user_id: currentUser.id
+            });
+            
+          console.log("Client insert result:", clientError);
+          
+          if (clientError) {
+            console.error("Error creating client:", clientError);
+            throw clientError;
+          }
+        }
+        
+        toast.success("Successfully registered as a client!");
+        navigate('/client/dashboard'); // Make sure this path matches your route definition
+      }
       
     } catch (err) {
       console.error('Error creating account:', err);
@@ -80,7 +163,10 @@ export default function UserTypeSelection() {
     }
   };
 
-  // Rest of your component remains the same
+  if (!userData && !user) {
+    return null; // Will redirect via useEffect
+  }
+
   return (
     <div className="flex h-screen bg-white">
       {/* Left section - Blue sidebar with app info */}
