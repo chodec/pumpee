@@ -1,13 +1,13 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider } from '@/hooks/useAuth';
-import { useAuth } from '@/hooks/useAuth';
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import UserTypeSelection from '@/pages/UserTypeSelection';
-import AuthCallback from '@/pages/AuthCallback';
-import ClientDashboard from '@/pages/ClientDashboard';
-import TrainerDashboard from '@/pages/TrainerDashboard';
+import { AuthProvider } from '@/pages/features/auth/hooks/useAuth';
+import { useAuth } from '@/pages/features/auth/hooks/useAuth';
+import Login from '@/pages/features/auth/pages/Login';
+import Register from '@/pages/features/auth/pages/Register';
+import UserTypeSelection from '@/pages/features/auth/pages/UserTypeSelection';
+import AuthCallback from '@/pages/features/auth/components/AuthCallback';
+import ClientDashboard from '@/pages/client/pages/ClientDashboard';
+import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard';
 
 // Protected Route Component
 const ProtectedRoute = () => {

@@ -1,16 +1,16 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from '@/hooks/useAuth'
+import { AuthProvider } from '@/pages/features/auth/hooks/useAuth'
 import '../styles/index.css'
 import App from '@/pages/App'
-import Login from '@/pages/Login'
-import Register from '@/pages/Register'
+import Login from '@/pages/features/auth/pages/Login'
+import Register from '@/pages/features/auth/pages/Register'
 import Legal from '@/pages/Legal'
-import UserTypeSelection from '@/pages/UserTypeSelection'
-import ClientDashboard from '@/pages/ClientDashboard'
-import TrainerDashboard from '@/pages/TrainerDashboard'
-import AuthCallback from '@/pages/AuthCallback'
+import UserTypeSelection from '@/pages/features/auth/pages/UserTypeSelection'
+import ClientDashboard from '@/pages/client/pages/ClientDashboard'
+import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard'
+import AuthCallback from '@/pages/features/auth/components/AuthCallback'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

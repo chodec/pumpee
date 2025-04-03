@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/atoms/Button';
 
 const Legal = () => {
   const [activeTab, setActiveTab] = useState<'terms' | 'privacy'>('terms');

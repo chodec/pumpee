@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from "sonner";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/pages/features/auth/hooks/useAuth';
 
 // Define the form schema with Zod validation
 const formSchema = z.object({

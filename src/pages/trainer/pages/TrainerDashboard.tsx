@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/ui/DashboardLayout';
+import DashboardLayout from '@/components/organisms/DashboardLayout';
 import { supabase } from '@/lib/supabaseClient';
 
 interface TrainerProfile {
