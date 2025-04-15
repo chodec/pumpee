@@ -92,9 +92,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (error) throw error;
   };
 
+  const getUserType = async () => {
+    if (!user) return null;
+  
+    const { data, error } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('id', user.id)
+      .single();
+  
+    if (error) {
+      console.error('Error fetching user type:', error);
+      return null;
+    }
+  
+    return data?.user_type || null;
+  };
+
   return (
     <AuthContext.Provider
-      value={{ session, user, signIn, signInWithGoogle, signUp, signOut, isLoading }}
+      value={{ session, user, signIn, signInWithGoogle, signUp, signOut, isLoading, getUserType }}
     >
       {children}
     </AuthContext.Provider>

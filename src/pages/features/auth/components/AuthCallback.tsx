@@ -22,8 +22,28 @@ export default function AuthCallback() {
           return;
         }
 
-        // Redirect to user type selection for new users
-        navigate('/user-type-selection');
+        // Check if the user already has a user type set
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('user_type')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userError && userError.code !== 'PGRST116') {
+          throw userError;
+        }
+
+        // If user type exists, redirect to appropriate dashboard
+        if (userData && userData.user_type) {
+          if (userData.user_type === 'client') {
+            navigate('/client/dashboard');
+          } else if (userData.user_type === 'trainer') {
+            navigate('/trainer/dashboard');
+          }
+        } else {
+          // If no user type, redirect to user type selection
+          navigate('/user-type-selection');
+        }
 
       } catch (error) {
         console.error('Authentication callback error:', error);

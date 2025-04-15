@@ -272,13 +272,47 @@ export default function Register() {
 
   return (
     <div className="flex h-screen bg-white">
-      {/* Left section - Blue sidebar with app info */}
-      <div className="hidden md:flex md:w-1/2 bg-blue-500 flex-col items-center justify-center text-white p-10">
-        <h1 className="text-4xl font-bold mb-4">Pumpee</h1>
-        <p className="text-center text-xl">
+    {/* Base gradient background */}
+    <div className="hidden md:flex md:w-1/2 relative overflow-hidden flex-col items-center justify-center">
+      {/* Static gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#007bff] via-[#007bff] to-[#ff7f0e]"></div>
+      
+      {/* Content */}
+      <div className="max-w-md text-center z-10 px-8">
+        <h1 className="text-5xl font-bold mb-6 text-white">Pumpee</h1>
+        <p className="text-xl text-white mb-12">
           Track your fitness journey and achieve your goals with Pumpee
         </p>
+        
+        {/* Feature icons */}
+        <div className="flex justify-around">
+          <div className="flex flex-col items-center">
+            <div className="bg-white/30 backdrop-blur-sm p-4 rounded-full mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span className="text-sm text-white">Track Progress</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="bg-white/30 backdrop-blur-sm p-4 rounded-full mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-sm text-white">Save Time</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="bg-white/30 backdrop-blur-sm p-4 rounded-full mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="text-sm text-white">Boost Results</span>
+          </div>
+        </div>
       </div>
+    </div>
 
       {/* Right section - Registration form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-8">
