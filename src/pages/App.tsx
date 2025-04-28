@@ -1,3 +1,4 @@
+// src/pages/App.tsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from '@/pages/features/auth/hooks/useAuth';
@@ -8,6 +9,7 @@ import UserTypeSelection from '@/pages/features/auth/pages/UserTypeSelection';
 import AuthCallback from '@/pages/features/auth/components/AuthCallback';
 import ClientDashboard from '@/pages/client/pages/ClientDashboard';
 import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard';
+import TrainerSubscriptions from '@/pages/trainer/pages/TrainerSubscriptions';
 
 // Protected Route Component
 const ProtectedRoute = () => {
@@ -34,14 +36,18 @@ function App() {
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
+            {/* Client Routes */}
             <Route path="/client/dashboard" element={<ClientDashboard />} />
+            
+            {/* Trainer Routes */}
             <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
+            <Route path="/trainer/subscriptions" element={<TrainerSubscriptions />} />
           </Route>
 
           {/* Default Route */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* Optional: 404 Not Found Route */}
+          {/* 404 Not Found Route */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>

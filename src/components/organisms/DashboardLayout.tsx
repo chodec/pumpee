@@ -26,21 +26,24 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
   };
 
   // Navigation items based on user type
-  const navigationItems = userType === 'client' 
-    ? [
-        { name: 'Dashboard', path: '/client/dashboard', icon: 'home' },
-        { name: 'My Profile', path: '/client/profile', icon: 'user' },
-        { name: 'My Trainers', path: '/client/trainers', icon: 'users' },
-        { name: 'Workouts', path: '/client/workouts', icon: 'dumbbell' },
-        { name: 'Progress', path: '/client/progress', icon: 'chart-line' },
-      ]
-    : [
-        { name: 'Dashboard', path: '/trainer/dashboard', icon: 'home' },
-        { name: 'My Profile', path: '/trainer/profile', icon: 'user' },
-        { name: 'My Clients', path: '/trainer/clients', icon: 'users' },
-        { name: 'Workouts', path: '/trainer/workouts', icon: 'dumbbell' },
-        { name: 'Schedule', path: '/trainer/schedule', icon: 'calendar' },
-      ];
+  const clientNavItems = [
+    { name: 'Dashboard', path: '/client/dashboard', icon: 'home' },
+    { name: 'My Profile', path: '/client/profile', icon: 'user' },
+    { name: 'My Trainers', path: '/client/trainers', icon: 'users' },
+    { name: 'Workouts', path: '/client/workouts', icon: 'dumbbell' },
+    { name: 'Progress', path: '/client/progress', icon: 'chart-line' },
+  ];
+
+  const trainerNavItems = [
+    { name: 'Dashboard', path: '/trainer/dashboard', icon: 'home' },
+    { name: 'My Profile', path: '/trainer/profile', icon: 'user' },
+    { name: 'My Clients', path: '/trainer/clients', icon: 'users' },
+    { name: 'Workouts', path: '/trainer/workouts', icon: 'dumbbell' },
+    { name: 'Schedule', path: '/trainer/schedule', icon: 'calendar' },
+    { name: 'Subscriptions', path: '/trainer/subscriptions', icon: 'credit-card' },
+  ];
+
+  const navigationItems = userType === 'client' ? clientNavItems : trainerNavItems;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -184,6 +187,12 @@ function Icon({ name }: IconProps) {
         <line x1="16" y1="2" x2="16" y2="6"></line>
         <line x1="8" y1="2" x2="8" y2="6"></line>
         <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    ),
+    'credit-card': (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+        <line x1="1" y1="10" x2="23" y2="10"></line>
       </svg>
     ),
     'menu': (

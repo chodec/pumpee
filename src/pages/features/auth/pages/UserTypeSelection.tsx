@@ -1,3 +1,4 @@
+// src/pages/features/auth/pages/UserTypeSelection.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -110,25 +111,51 @@ export default function UserTypeSelection() {
     if (error) throw error;
   };
 
-  // Create trainer record
+  // Create trainer record with Basic subscription by default
   const createTrainerRecord = async (userId: string) => {
-    // Fetch default subscription tier
-    const { data: tierData, error: tierError } = await supabase
-      .from('subscription_tiers')
-      .select('id')
-      .limit(1)
-      .single();
-
-    if (tierError) throw tierError;
-
-    const { error } = await supabase
-      .from('trainers')
-      .upsert({ 
-        user_id: userId,
-        subscription_tier_id: tierData.id 
-      }, { onConflict: 'user_id' });
-
-    if (error) throw error;
+    try {
+      // Get the Basic subscription tier
+      const { data: basicTier, error: tierError } = await supabase
+        .from('subscription_tiers')
+        .select('id')
+        .eq('name', 'Basic')
+        .single();
+        
+      if (tierError) {
+        console.error('Error fetching Basic subscription tier:', tierError);
+        // Fallback: Get any subscription tier if Basic is not found
+        const { data: fallbackTier, error: fallbackError } = await supabase
+          .from('subscription_tiers')
+          .select('id')
+          .limit(1)
+          .single();
+          
+        if (fallbackError) throw fallbackError;
+        
+        // Create trainer record with fallback tier
+        const { error } = await supabase
+          .from('trainers')
+          .upsert({ 
+            user_id: userId,
+            subscription_tier_id: fallbackTier.id 
+          }, { onConflict: 'user_id' });
+  
+        if (error) throw error;
+      } else {
+        // Create trainer record with Basic tier
+        const { error } = await supabase
+          .from('trainers')
+          .upsert({ 
+            user_id: userId,
+            subscription_tier_id: basicTier.id 
+          }, { onConflict: 'user_id' });
+  
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error creating trainer record:', error);
+      throw error;
+    }
   };
 
   // Prevent rendering if no user

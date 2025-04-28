@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/organisms/DashboardLayout';
-import { supabase } from '@/lib/supabaseClient';
+// src/pages/trainer/pages/TrainerDashboard.tsx
+import { useEffect, useState } from "react";
+import DashboardLayout from "../../../components/organisms/DashboardLayout";
+// Try a super-explicit path for SubscriptionBox
+import SubscriptionBox from "@/components/features/trainer/SubscriptionBox";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface TrainerProfile {
   full_name: string;
@@ -37,9 +40,9 @@ export default function TrainerDashboard() {
         
         // Get trainer profile data
         const { data, error } = await supabase
-          .from('trainers')
-          .select('*')
-          .eq('user_id', user.id)
+          .from('users')
+          .select('full_name, email')
+          .eq('id', user.id)
           .single();
           
         if (error) {
@@ -70,6 +73,11 @@ export default function TrainerDashboard() {
               Here's an overview of your clients and schedule.
             </p>
           </div>
+        </div>
+
+        {/* Subscription Box - in first column */}
+        <div className="col-span-1">
+          <SubscriptionBox />
         </div>
 
         {/* Statistics cards */}
@@ -103,24 +111,6 @@ export default function TrainerDashboard() {
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Sessions Today</h3>
               <p className="text-lg font-semibold text-gray-800">4</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow-sm">
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="20" x2="12" y2="10"></line>
-                <line x1="18" y1="20" x2="18" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="16"></line>
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-500">Avg. Client Progress</h3>
-              <p className="text-lg font-semibold text-gray-800">
-                {clients.length ? `${Math.round(clients.reduce((acc, client) => acc + client.progress, 0) / clients.length)}%` : '0%'}
-              </p>
             </div>
           </div>
         </div>
