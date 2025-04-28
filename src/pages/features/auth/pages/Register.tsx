@@ -1,3 +1,4 @@
+// src/pages/features/auth/pages/Register.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
@@ -34,7 +35,8 @@ export default function Register() {
   const { 
     register, 
     handleSubmit, 
-    formState: { errors } 
+    formState: { errors },
+    setError
   } = useForm<RegistrationFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,6 +53,29 @@ export default function Register() {
     setIsLoading(true);
     
     try {
+      // Check if the email already exists in users table
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', data.email)
+        .maybeSingle();
+      
+      if (checkError && !checkError.message.includes('No rows found')) {
+        throw checkError;
+      }
+  
+      if (existingUser) {
+        // Email already exists, set form error
+        setError('email', {
+          type: 'manual',
+          message: 'This email is already registered. Please login instead.'
+        });
+        
+        toast.error('This email is already registered. Please login instead.');
+        setIsLoading(false);
+        return;
+      }
+      
       // Create full name from first and last name
       const fullName = `${data.firstName} ${data.lastName}`;
       
@@ -66,7 +91,19 @@ export default function Register() {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        // Double-check for duplicate email errors from Supabase
+        if (error.message?.includes('User already registered')) {
+          setError('email', {
+            type: 'manual',
+            message: 'This email is already registered. Please login instead.'
+          });
+          toast.error('This email is already registered. Please login instead.');
+          setIsLoading(false);
+          return;
+        }
+        throw error;
+      }
       
       // Show success screen
       setRegisteredEmail(data.email);
@@ -75,8 +112,14 @@ export default function Register() {
     } catch (error: any) {
       console.error("Registration failed:", error);
       
-      if (error.message?.includes('email already exists')) {
-        toast.error("This email is already registered. Please log in instead.");
+      // Handle general errors
+      if (error.message?.includes('email already exists') || 
+          error.message?.includes('User already registered')) {
+        setError('email', {
+          type: 'manual',
+          message: 'This email is already registered. Please login instead.'
+        });
+        toast.error('This email is already registered. Please login instead.');
       } else {
         toast.error(error.message || "Registration failed. Please try again.");
       }
@@ -139,6 +182,7 @@ export default function Register() {
     );
   }
 
+  // Rest of the component remains the same...
   return (
     <div className="flex h-screen bg-white">
       {/* Left gradient background */}
