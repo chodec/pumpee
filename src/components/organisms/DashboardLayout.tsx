@@ -11,13 +11,21 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     try {
+      setIsSigningOut(true);
+      
+      // Sign out from Supabase
       await supabase.auth.signOut();
+      
+      // Navigate to login page
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -57,7 +65,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 transform bg-blue-600 text-white transition duration-300 ease-in-out lg:static lg:translate-x-0
+        fixed inset-y-0 left-0 z-30 w-64 transform bg-[#007bff] text-white transition duration-300 ease-in-out lg:static lg:translate-x-0
         ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex h-16 items-center justify-center border-b border-blue-500">
@@ -91,12 +99,20 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
         <div className="absolute bottom-0 w-full border-t border-blue-500 p-4">
           <button
             onClick={handleSignOut}
-            className="flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-blue-100 hover:bg-blue-700 hover:text-white"
+            disabled={isSigningOut}
+            className="flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-blue-100 hover:bg-blue-700 hover:text-white disabled:opacity-50"
           >
             <span className="mr-3">
-              <Icon name="log-out" />
+              {isSigningOut ? (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <Icon name="log-out" />
+              )}
             </span>
-            Sign Out
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
           </button>
         </div>
       </div>
@@ -120,7 +136,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                 className="flex items-center rounded-full bg-gray-200 p-1 text-sm focus:outline-none focus:ring"
               >
                 <span className="sr-only">Open user menu</span>
-                <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-[#007bff] text-white flex items-center justify-center">
                   <Icon name="user" />
                 </div>
               </button>
@@ -143,8 +159,7 @@ interface IconProps {
 }
 
 function Icon({ name }: IconProps) {
-  // This is a simplified icon implementation
-  // In a real application, you would use an icon library like heroicons, react-icons, etc.
+  // Icon definitions remain the same
   const iconMap: Record<string, ReactNode> = {
     'home': (
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

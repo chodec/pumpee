@@ -42,12 +42,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       try {
         // Get the current session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         
         if (error) throw error;
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
@@ -59,9 +59,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Set up auth state listener for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        console.log('Auth state changed:', event, newSession?.user?.id);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setIsLoading(false);
       }
     );
@@ -111,8 +112,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           data: {
             full_name: userData.fullName,
           },
-          // You can uncomment this if you want to redirect after email verification
-          // emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
       

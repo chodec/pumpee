@@ -1,58 +1,78 @@
 // src/pages/App.tsx
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider } from '@/pages/features/auth/hooks/useAuth';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/pages/features/auth/hooks/useAuth';
-import Login from '@/pages/features/auth/pages/Login';
-import Register from '@/pages/features/auth/pages/Register';
-import UserTypeSelection from '@/pages/features/auth/pages/UserTypeSelection';
-import AuthCallback from '@/pages/features/auth/components/AuthCallback';
-import ClientDashboard from '@/pages/client/pages/ClientDashboard';
-import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard';
-import TrainerSubscriptions from '@/pages/trainer/pages/TrainerSubscriptions';
-
-// Protected Route Component
-const ProtectedRoute = () => {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    // Optional: Add a loading spinner or placeholder
-    return <div>Loading...</div>;
-  }
-
-  return user ? <Outlet /> : <Navigate to="/login" replace />;
-};
+import { supabase } from '@/lib/supabaseClient';
 
 function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/user-type-selection" element={<UserTypeSelection />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            {/* Client Routes */}
-            <Route path="/client/dashboard" element={<ClientDashboard />} />
-            
-            {/* Trainer Routes */}
-            <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
-            <Route path="/trainer/subscriptions" element={<TrainerSubscriptions />} />
-          </Route>
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isLoading) return;
 
-          {/* Default Route */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+      // Get the session from supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // If no session, redirect to login
+        navigate('/login');
+        return;
+      }
 
-          {/* 404 Not Found Route */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
-  );
+      // Get user type to determine where to redirect
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('user_type')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user type:', error);
+        navigate('/login');
+        return;
+      }
+
+      // Redirect based on user type
+      if (userData?.user_type === 'client') {
+        navigate('/client/dashboard');
+      } else if (userData?.user_type === 'trainer') {
+        navigate('/trainer/dashboard');
+      } else {
+        navigate('/user-type-selection');
+      }
+    };
+
+    checkAuth();
+  }, [isLoading, navigate, user]);
+
+  // Add auth state change listener to prevent unwanted logouts
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+      
+      // If signed out, redirect to login
+      if (event === 'SIGNED_OUT') {
+        navigate('/login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // Show loading while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#007bff]"></div>
+      </div>
+    );
+  }
+
+  // This component is mainly for routing, and the actual content is rendered via Routes in index.tsx
+  return null;
 }
 
 export default App;

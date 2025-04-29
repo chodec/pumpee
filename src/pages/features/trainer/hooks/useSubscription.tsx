@@ -1,7 +1,8 @@
-// src/pages/features/trainer/hooks/useSubscription.ts
+// src/pages/features/trainer/hooks/useSubscription.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+// Define subscription tier interface
 export interface SubscriptionTier {
   id: string;
   name: string;
@@ -10,10 +11,11 @@ export interface SubscriptionTier {
   description: string | null;
   client_limit: number | null;
   yearly_price: number | null;
-  has_discount: boolean;
-  discount_percentage: number | null;
+  sale_price: number | null;
+  justification: string | null;
 }
 
+// Define return type for the hook
 export interface SubscriptionData {
   subscription: SubscriptionTier | null;
   clientCount: number;
@@ -24,7 +26,7 @@ export interface SubscriptionData {
 }
 
 /**
- * Custom hook to fetch trainer's subscription data
+ * Custom hook to fetch trainer's current subscription data
  */
 export function useSubscription(): SubscriptionData {
   const [subscription, setSubscription] = useState<SubscriptionTier | null>(null);
@@ -44,7 +46,7 @@ export function useSubscription(): SubscriptionData {
           throw new Error('User not found');
         }
         
-        // Get trainer data
+        // Get trainer data with subscription tier ID
         const { data: trainerData, error: trainerError } = await supabase
           .from('trainers')
           .select('subscription_tier_id')
@@ -112,12 +114,12 @@ export function useSubscription(): SubscriptionData {
 }
 
 /**
- * Format price for display
+ * Helper function to format price for display
  */
 export function formatPrice(price: number | null, billingCycle?: string): string {
   if (price === null || price === 0) return 'Free';
   
-  const formattedPrice = `$${price}`;
+  const formattedPrice = `${price.toLocaleString()} CZK`;
   
   if (!billingCycle) return formattedPrice;
   
