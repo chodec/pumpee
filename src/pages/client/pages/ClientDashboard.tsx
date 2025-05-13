@@ -1,68 +1,198 @@
 // src/pages/client/pages/ClientDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/organisms/DashboardLayout';
-import { Button } from '@/components/atoms/Button';
-import Icon from '@/components/atoms/Icon';
 import LoadingSpinner from '@/components/atoms/LoadingSpinner';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/organisms/Card';
+import { Card, CardContent } from '@/components/organisms/Card';
+import StatsOverview from '@/components/features/client/StatsOverview';
 import { ClientAPI, AuthAPI } from '@/lib/api';
-import { showErrorToast } from '@/lib/errors';
+import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
 import { UserProfile } from '@/lib/types';
 
 // Directly import the component files
-// Note: If you prefer to create the components first and then import, you can update this part later
 import { ClientSubscriptionBox } from '@/components/features/client/ClientSubscriptionBox';
 import { MeasurementTracker } from '@/components/features/client/MeasurementTracker';
 import { ProgressGraph } from '@/components/features/client/ProgressGraph';
 import { RecentWorkoutsList } from '@/components/features/client/RecentWorkoutsList';
 
-// Fallback components in case the imports fail (you can remove these once the imports work)
-// const ClientSubscriptionBox = () => <div>Subscription Box</div>;
-// const MeasurementTracker = () => <div>Measurement Tracker</div>;
-// const ProgressGraph = () => <div>Progress Graph</div>;
-// const RecentWorkoutsList = () => <div>Recent Workouts List</div>;
-
 export default function ClientDashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    completedWorkouts: 12,
-    streak: 3,
-    nextWorkout: 'Tomorrow, 9:00 AM'
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [measurements, setMeasurements] = useState([]);
+  const [clientStats, setClientStats] = useState({
+    currentWeight: {
+      value: 0,
+      change: 0,
+      unit: 'kg'
+    },
+    bodyFat: {
+      value: 0,
+      change: 0,
+      unit: '%'
+    },
+    muscleGain: {
+      value: 0,
+      change: 0,
+      unit: 'kg'
+    }
   });
 
   useEffect(() => {
     async function fetchProfileData() {
       try {
         setLoading(true);
-        // In a real implementation, this would fetch actual profile data
-        // const profileData = await AuthAPI.getUserProfile();
-        // setProfile(profileData);
-        
-        // For now, use mock data
-        setProfile({
+        const profileData = await AuthAPI.getUserProfile();
+        setProfile(profileData || {
           id: '1',
           email: 'client@example.com',
           full_name: 'John Doe',
           user_type: 'client'
         });
-        
-        // In a real app, you would fetch client stats here
-        // const clientStats = await ClientAPI.getClientStats();
-        // setStats(clientStats);
-        
-        // Simulate API delay
+
         setTimeout(() => setLoading(false), 500);
       } catch (error) {
         console.error('Failed to load profile data:', error);
-        // showErrorToast(error, 'Failed to load profile data');
+        showErrorToast(error, 'Failed to load profile data');
         setLoading(false);
       }
     }
     
+    async function fetchClientMeasurements() {
+      try {
+        setStatsLoading(true);
+        
+        // Fetch all client measurements
+        const clientMeasurements = await ClientAPI.getClientMeasurements(30);
+        setMeasurements(clientMeasurements || []);
+        
+        if (clientMeasurements && clientMeasurements.length > 0) {
+          // Calculate client stats from measurements
+          const stats = calculateClientStats(clientMeasurements);
+          setClientStats(stats);
+        }
+        
+        setStatsLoading(false);
+      } catch (error) {
+        console.error('Failed to load client measurements:', error);
+        showErrorToast(error, 'Failed to load client measurements');
+        setStatsLoading(false);
+      }
+    }
+    
     fetchProfileData();
+    fetchClientMeasurements();
   }, []);
+
+  // Helper function to calculate client stats from measurements
+  const calculateClientStats = (measurementData) => {
+    if (!measurementData || measurementData.length === 0) {
+      return {
+        currentWeight: { value: 0, change: 0, unit: 'kg' },
+        bodyFat: { value: 0, change: 0, unit: '%' },
+        muscleGain: { value: 0, change: 0, unit: 'kg' }
+      };
+    }
+    
+    // Get latest and oldest measurements to calculate changes
+    const latest = measurementData[0];
+    const oldest = measurementData.length > 1 ? measurementData[measurementData.length - 1] : null;
+    
+    // Calculate weight stats
+    const currentWeight = {
+      value: parseFloat(latest.body_weight) || 0,
+      change: oldest ? parseFloat(latest.body_weight) - parseFloat(oldest.body_weight) : 0,
+      unit: 'kg'
+    };
+    
+    // Calculate body fat (using a simple estimation)
+    const estimateBodyFat = (measurement) => {
+      if (!measurement) return 0;
+      
+      const waist = parseFloat(measurement.waist_size) || 0;
+      const chest = parseFloat(measurement.chest_size) || 0;
+      
+      if (waist === 0 || chest === 0) return 0;
+      
+      // Simple formula (not medically accurate)
+      const ratio = waist / chest;
+      let bodyFat = (ratio * 100) - 30;
+      
+      // Ensure reasonable range
+      bodyFat = Math.max(5, Math.min(bodyFat, 35));
+      
+      return parseFloat(bodyFat.toFixed(1));
+    };
+    
+    const latestBodyFat = estimateBodyFat(latest);
+    const oldestBodyFat = oldest ? estimateBodyFat(oldest) : latestBodyFat;
+    
+    const bodyFat = {
+      value: latestBodyFat,
+      change: latestBodyFat - oldestBodyFat,
+      unit: '%'
+    };
+    
+    // Calculate muscle gain
+    const calculateMuscleGain = () => {
+      if (!latest || !oldest) return { value: 0, change: 0, unit: 'kg' };
+      
+      const weightChange = parseFloat(latest.body_weight) - parseFloat(oldest.body_weight);
+      const bodyFatChange = latestBodyFat - oldestBodyFat;
+      
+      let muscleGain = 0;
+      
+      // If weight increased but body fat decreased, it's likely muscle gain
+      if (weightChange > 0 && bodyFatChange <= 0) {
+        muscleGain = weightChange;
+      } 
+      // If weight decreased but body fat decreased more, there might still be muscle gain
+      else if (weightChange < 0 && bodyFatChange < -2) {
+        muscleGain = Math.abs(bodyFatChange) * 0.3;
+      }
+      
+      return {
+        value: parseFloat(muscleGain.toFixed(1)),
+        change: parseFloat(muscleGain.toFixed(1)),
+        unit: 'kg'
+      };
+    };
+    
+    const muscleGain = calculateMuscleGain();
+    
+    return {
+      currentWeight,
+      bodyFat,
+      muscleGain
+    };
+  };
+
+  // Handle adding new measurements
+  const handleAddMeasurement = async (newMeasurement) => {
+    try {
+      // Add the measurement using the API
+      const success = await ClientAPI.addMeasurement(newMeasurement);
+      
+      if (success) {
+        // Refresh measurements after adding new one
+        const updatedMeasurements = await ClientAPI.getClientMeasurements(30);
+        setMeasurements(updatedMeasurements || []);
+        
+        // Recalculate stats
+        if (updatedMeasurements && updatedMeasurements.length > 0) {
+          const stats = calculateClientStats(updatedMeasurements);
+          setClientStats(stats);
+        }
+        
+        showSuccessToast('Measurement added successfully');
+      } else {
+        showErrorToast(null, 'Failed to add measurement');
+      }
+    } catch (error) {
+      console.error('Error adding measurement:', error);
+      showErrorToast(error, 'Failed to add measurement');
+    }
+  };
 
   return (
     <DashboardLayout userType={USER_TYPES.CLIENT}>
@@ -89,62 +219,32 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-[#007bff]">
-                  <Icon name="dumbbell" size={24} />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-sm font-medium text-gray-500">Completed Workouts</h3>
-                  <p className="text-lg font-semibold text-gray-800">{stats.completedWorkouts}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-[#ff7f0e]">
-                  <Icon name="calendar" size={24} />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-sm font-medium text-gray-500">Current Streak</h3>
-                  <p className="text-lg font-semibold text-gray-800">{stats.streak} days</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-[#7690cd]">
-                  <Icon name="chart-line" size={24} />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-sm font-medium text-gray-500">Next Workout</h3>
-                  <p className="text-lg font-semibold text-gray-800">{stats.nextWorkout}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Stats Overview */}
+        <StatsOverview 
+          currentWeight={clientStats.currentWeight}
+          bodyFat={clientStats.bodyFat}
+          muscleGain={clientStats.muscleGain}
+          isLoading={statsLoading}
+        />
         
         {/* Main Content - Responsive Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Subscription Box & Measurements */}
           <div className="lg:col-span-1 space-y-6">
             <ClientSubscriptionBox />
-            <MeasurementTracker />
+            <MeasurementTracker 
+              measurements={measurements}
+              onAddMeasurement={handleAddMeasurement}
+              isLoading={statsLoading}
+            />
           </div>
           
           {/* Right Column - Progress Graph & Recent Workouts */}
           <div className="lg:col-span-2 space-y-6">
-            <ProgressGraph />
+            <ProgressGraph 
+              measurements={measurements}
+              isLoading={statsLoading}
+            />
             <RecentWorkoutsList />
           </div>
         </div>

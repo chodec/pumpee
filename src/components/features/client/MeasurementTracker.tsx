@@ -12,76 +12,96 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/molecules/Form';
-import { RadioGroup, RadioGroupItem } from '@/components/molecules/RadioGroup';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { showSuccessToast, showErrorToast } from '@/lib/errors';
+import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 
-// Define the measurement types
-const measurementTypes = [
-  { id: 'weight', label: 'Weight', unit: 'kg', icon: 'user' },
-  { id: 'waist', label: 'Waist', unit: 'cm', icon: 'user' },
-  { id: 'chest', label: 'Chest', unit: 'cm', icon: 'user' },
-  { id: 'arms', label: 'Arms', unit: 'cm', icon: 'user' },
-  { id: 'legs', label: 'Legs', unit: 'cm', icon: 'user' }
-];
-
-// Form schema
+// Form schema for all measurements
 const measurementSchema = z.object({
-  type: z.string().min(1, 'Please select a measurement type'),
-  value: z.string().min(1, 'Value is required').refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    { message: 'Please enter a valid number greater than 0' }
-  ),
-  date: z.string().min(1, 'Date is required')
+  date: z.string().min(1, 'Date is required'),
+  body_weight: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  chest_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  waist_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  biceps_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  thigh_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  notes: z.string().optional()
+}).refine(data => {
+  // At least one measurement must be provided
+  return data.body_weight !== null || 
+         data.chest_size !== null || 
+         data.waist_size !== null || 
+         data.biceps_size !== null || 
+         data.thigh_size !== null;
+}, {
+  message: "At least one measurement must be provided",
+  path: ["body_weight"]
 });
 
 type MeasurementFormValues = z.infer<typeof measurementSchema>;
 
-export const MeasurementTracker: React.FC = () => {
+export interface MeasurementTrackerProps {
+  measurements: any[];
+  onAddMeasurement: (measurement: MeasurementFormValues) => Promise<void>;
+  isLoading?: boolean;
+}
+
+export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
+  measurements = [],
+  onAddMeasurement,
+  isLoading = false
+}) => {
   const [showForm, setShowForm] = useState(false);
-  const [measurements, setMeasurements] = useState<any[]>([
-    // Mock data for example - in a real app, would fetch from API
-    { id: 1, type: 'weight', value: 78.5, unit: 'kg', date: '2025-05-10' },
-    { id: 2, type: 'waist', value: 82, unit: 'cm', date: '2025-05-10' }
-  ]);
+  const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<MeasurementFormValues>({
     resolver: zodResolver(measurementSchema),
     defaultValues: {
-      type: '',
-      value: '',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      body_weight: '',
+      chest_size: '',
+      waist_size: '',
+      biceps_size: '',
+      thigh_size: '',
+      notes: ''
     }
   });
 
   const onSubmit = async (data: MeasurementFormValues) => {
     try {
-      // In a real app, you would save to database
-      // await ClientAPI.addMeasurement(data);
+      setSubmitting(true);
       
-      // Add to local state
-      const measurementType = measurementTypes.find(m => m.id === data.type);
-      const newMeasurement = {
-        id: Date.now(),
-        type: data.type,
-        value: parseFloat(data.value),
-        unit: measurementType?.unit || '',
-        date: data.date
-      };
+      await onAddMeasurement(data);
       
-      setMeasurements([newMeasurement, ...measurements]);
       form.reset();
       setShowForm(false);
-      showSuccessToast('Measurement added successfully');
     } catch (error) {
-      showErrorToast(error, 'Failed to add measurement');
+      console.error('Form submission error:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const getMeasurementLabel = (type: string) => {
-    return measurementTypes.find(m => m.id === type)?.label || type;
+  // Get label for measurement type
+  const getMeasurementLabel = (type: string): string => {
+    const labels: Record<string, string> = {
+      body_weight: 'Weight',
+      chest_size: 'Chest',
+      waist_size: 'Waist',
+      biceps_size: 'Arms',
+      thigh_size: 'Legs'
+    };
+    
+    return labels[type] || type;
+  };
+  
+  // Format measurement value with unit
+  const formatMeasurement = (type: string, value: number): string => {
+    if (type === 'body_weight') {
+      return `${value} kg`;
+    }
+    return `${value} cm`;
   };
 
   return (
@@ -92,44 +112,29 @@ export const MeasurementTracker: React.FC = () => {
           variant={showForm ? "outline" : "blue"} 
           size="sm"
           onClick={() => setShowForm(!showForm)}
+          disabled={submitting}
         >
           {showForm ? 'Cancel' : 'Add Measurement'}
         </Button>
       </CardHeader>
       <CardContent>
-        {showForm ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center min-h-[200px]">
+            <LoadingSpinner size="md" />
+            <p className="ml-3 text-gray-500">Loading measurements...</p>
+          </div>
+        ) : showForm ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="type"
+                name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Measurement Type</FormLabel>
-                    <div className="grid grid-cols-2 gap-2">
-                      {measurementTypes.map((type) => (
-                        <div key={type.id} className="flex items-center">
-                          <input
-                            type="radio"
-                            id={`type-${type.id}`}
-                            className="sr-only"
-                            {...field}
-                            value={type.id}
-                            checked={field.value === type.id}
-                          />
-                          <label
-                            htmlFor={`type-${type.id}`}
-                            className={`flex-1 cursor-pointer rounded-md border p-2 text-center text-sm ${
-                              field.value === type.id
-                                ? 'border-[#007bff] bg-blue-50 text-[#007bff]'
-                                : 'border-gray-200 hover:border-[#007bff]/50'
-                            }`}
-                          >
-                            {type.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -138,12 +143,12 @@ export const MeasurementTracker: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="value"
+                  name="body_weight"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Value</FormLabel>
+                      <FormLabel>Weight (kg)</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.1" min="0" />
+                        <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -152,12 +157,12 @@ export const MeasurementTracker: React.FC = () => {
                 
                 <FormField
                   control={form.control}
-                  name="date"
+                  name="chest_size"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>Chest (cm)</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -165,8 +170,70 @@ export const MeasurementTracker: React.FC = () => {
                 />
               </div>
               
-              <Button type="submit" variant="blue" className="w-full">
-                Save Measurement
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="waist_size"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Waist (cm)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="biceps_size"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Arms (cm)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="thigh_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Legs (cm)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (optional)</FormLabel>
+                    <FormControl>
+                      <textarea 
+                        {...field}
+                        className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Optional notes about your measurements"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button type="submit" variant="blue" className="w-full" isLoading={submitting}>
+                Save Measurements
               </Button>
             </form>
           </Form>
@@ -174,29 +241,50 @@ export const MeasurementTracker: React.FC = () => {
           <>
             {measurements.length > 0 ? (
               <div className="space-y-2">
-                {measurements.map((measurement) => (
-                  <div 
-                    key={measurement.id} 
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                  >
-                    <div className="flex items-center">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-[#007bff] mr-3">
-                        <Icon name="user" size={16} />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {getMeasurementLabel(measurement.type)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(measurement.date).toLocaleDateString()}
-                        </p>
+                {measurements.slice(0, 5).map((measurement) => {
+                  // Find the first measurement value that exists
+                  const firstMeasureType = ['body_weight', 'chest_size', 'waist_size', 'biceps_size', 'thigh_size']
+                    .find(type => measurement[type] !== null && measurement[type] !== undefined);
+                  
+                  if (!firstMeasureType) return null;
+                  
+                  const measureLabel = getMeasurementLabel(firstMeasureType);
+                  const measureValue = formatMeasurement(firstMeasureType, measurement[firstMeasureType]);
+                  
+                  return (
+                    <div 
+                      key={measurement.id} 
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                    >
+                      <div className="flex items-center">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-[#007bff] mr-3">
+                          <Icon name="user" size={16} />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {new Date(measurement.date).toLocaleDateString()} Data
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {Object.entries(measurement)
+                              .filter(([key, value]) => 
+                                ['body_weight', 'chest_size', 'waist_size', 'biceps_size', 'thigh_size'].includes(key) && 
+                                value !== null && value !== undefined
+                              )
+                              .map(([key, value]) => `${getMeasurementLabel(key)}: ${value}${key === 'body_weight' ? 'kg' : 'cm'}`)
+                              .join(', ')
+                            }
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="font-bold">
-                      {measurement.value} {measurement.unit}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
+                
+                {measurements.length > 5 && (
+                  <Button variant="outline" size="sm" className="w-full mt-2">
+                    View All Measurements
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="text-center py-8">
