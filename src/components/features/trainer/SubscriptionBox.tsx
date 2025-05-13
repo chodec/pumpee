@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useSubscription, formatPrice } from '@/pages/features/trainer/hooks/useSubscription';
 import { ArrowRight } from 'lucide-react';
+import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 
 export default function SubscriptionBox() {
   const { 
@@ -10,21 +11,38 @@ export default function SubscriptionBox() {
     clientCount, 
     clientLimit, 
     usagePercentage, 
-    isLoading 
+    isLoading,
+    error
   } = useSubscription();
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="rounded-lg bg-white p-6 shadow-sm">
-        <div className="animate-pulse">
-          <div className="h-5 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
-          <div className="h-8 bg-gray-200 rounded w-full mt-4"></div>
+        <div className="flex flex-col items-center justify-center h-48 space-y-4">
+          <LoadingSpinner size="md" color="primary" />
+          <p className="text-sm text-gray-500">Loading subscription details...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-medium text-[#040b07] mb-6">Subscription</h3>
+        <div className="p-4 border border-red-200 rounded-md bg-red-50 text-red-600 mb-4">
+          <p>Unable to load subscription details.</p>
+          <p className="text-sm mt-1">Please try again later.</p>
+        </div>
+        <Link 
+          to="/trainer/subscriptions"
+          className="flex justify-between items-center w-full mt-6 py-2 px-4 text-center text-white bg-[#007bff] rounded-md hover:bg-blue-600 transition-colors group"
+        >
+          <span>Manage subscription</span>
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </Link>
       </div>
     );
   }
@@ -79,6 +97,10 @@ export default function SubscriptionBox() {
               <div 
                 className={`${progressColor} h-2 rounded-full transition-all duration-500`}
                 style={{ width: `${usagePercentage}%` }}
+                aria-valuenow={usagePercentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                role="progressbar"
               ></div>
             </div>
           )}

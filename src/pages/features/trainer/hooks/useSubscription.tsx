@@ -1,19 +1,7 @@
 // src/pages/features/trainer/hooks/useSubscription.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-
-// Define subscription tier interface
-export interface SubscriptionTier {
-  id: string;
-  name: string;
-  price: number | null;
-  billing_cycle: string;
-  description: string | null;
-  client_limit: number | null;
-  yearly_price: number | null;
-  sale_price: number | null;
-  justification: string | null;
-}
+import { SubscriptionTier } from '@/lib/types';
 
 // Define return type for the hook
 export interface SubscriptionData {
@@ -23,6 +11,7 @@ export interface SubscriptionData {
   usagePercentage: number;
   isLoading: boolean;
   error: Error | null;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -34,66 +23,66 @@ export function useSubscription(): SubscriptionData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    async function fetchSubscriptionData() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error('User not found');
-        }
-        
-        // Get trainer data with subscription tier ID
-        const { data: trainerData, error: trainerError } = await supabase
-          .from('trainers')
-          .select('subscription_tier_id')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (trainerError) {
-          throw trainerError;
-        }
-        
-        if (!trainerData?.subscription_tier_id) {
-          throw new Error('No subscription found');
-        }
-        
-        // Get subscription tier details
-        const { data: subscriptionData, error: subscriptionError } = await supabase
-          .from('subscription_tiers')
-          .select('*')
-          .eq('id', trainerData.subscription_tier_id)
-          .single();
-          
-        if (subscriptionError) {
-          throw subscriptionError;
-        }
-        
-        setSubscription(subscriptionData);
-        
-        // Count the trainer's clients
-        const { count, error: countError } = await supabase
-          .from('clients')
-          .select('*', { count: 'exact', head: true })
-          .eq('trainer_id', user.id);
-          
-        if (countError) {
-          console.error('Error counting clients:', countError);
-        } else {
-          setClientCount(count || 0);
-        }
-        
-      } catch (error: any) {
-        console.error('Error fetching subscription data:', error);
-        setError(error);
-      } finally {
-        setIsLoading(false);
+  const fetchSubscriptionData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not found');
       }
+      
+      // Get trainer data with subscription tier ID
+      const { data: trainerData, error: trainerError } = await supabase
+        .from('trainers')
+        .select('subscription_tier_id')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (trainerError) {
+        throw trainerError;
+      }
+      
+      if (!trainerData?.subscription_tier_id) {
+        throw new Error('No subscription found');
+      }
+      
+      // Get subscription tier details
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('subscription_tiers')
+        .select('*')
+        .eq('id', trainerData.subscription_tier_id)
+        .single();
+        
+      if (subscriptionError) {
+        throw subscriptionError;
+      }
+      
+      setSubscription(subscriptionData);
+      
+      // Count the trainer's clients
+      const { count, error: countError } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('trainer_id', user.id);
+        
+      if (countError) {
+        console.error('Error counting clients:', countError);
+      } else {
+        setClientCount(count || 0);
+      }
+      
+    } catch (error: any) {
+      console.error('Error fetching subscription data:', error);
+      setError(error);
+    } finally {
+      setIsLoading(false);
     }
-    
+  };
+
+  useEffect(() => {
     fetchSubscriptionData();
   }, []);
 
@@ -109,7 +98,8 @@ export function useSubscription(): SubscriptionData {
     clientLimit,
     usagePercentage,
     isLoading,
-    error
+    error,
+    refetch: fetchSubscriptionData
   };
 }
 
