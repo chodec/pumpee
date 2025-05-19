@@ -9,18 +9,50 @@ import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
 import { UserProfile } from '@/lib/types';
 
-// Directly import the component files
+// Import components
 import { ClientSubscriptionBox } from '@/components/features/client/ClientSubscriptionBox';
 import { MeasurementTracker } from '@/components/features/client/MeasurementTracker';
 import { ProgressGraph } from '@/components/features/client/ProgressGraph';
 import { RecentWorkoutsList } from '@/components/features/client/RecentWorkoutsList';
 
+// Types for measurements and stats
+interface ClientStat {
+  value: number;
+  change: number;
+  unit: string;
+}
+
+interface ClientStats {
+  currentWeight: ClientStat;
+  bodyFat: ClientStat;
+  muscleGain: ClientStat;
+}
+
+interface ClientMeasurement {
+  id: string;
+  client_id: string;
+  date: string;
+  body_weight: number | null;
+  chest_size: number | null;
+  waist_size: number | null;
+  biceps_size: number | null;
+  thigh_size: number | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * ClientDashboard Component
+ * Main dashboard for client users showing progress, measurements and workouts
+ */
 export default function ClientDashboard() {
+  // Component state
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [measurements, setMeasurements] = useState([]);
-  const [clientStats, setClientStats] = useState({
+  const [loading, setLoading] = useState<boolean>(true);
+  const [statsLoading, setStatsLoading] = useState<boolean>(true);
+  const [measurements, setMeasurements] = useState<ClientMeasurement[]>([]);
+  const [clientStats, setClientStats] = useState<ClientStats>({
     currentWeight: {
       value: 0,
       change: 0,
@@ -38,152 +70,65 @@ export default function ClientDashboard() {
     }
   });
 
-  useEffect(() => {
-    async function fetchProfileData() {
-      try {
-        setLoading(true);
-        const profileData = await AuthAPI.getUserProfile();
-        setProfile(profileData || {
-          id: '1',
-          email: 'client@example.com',
-          full_name: 'John Doe',
-          user_type: 'client'
-        });
+  /**
+   * Fetch user profile data
+   */
+  const fetchProfileData = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const profileData = await AuthAPI.getUserProfile();
+      
+      setProfile(profileData || {
+        id: '1',
+        email: 'client@example.com',
+        full_name: 'John Doe',
+        user_type: 'client'
+      });
 
-        setTimeout(() => setLoading(false), 500);
-      } catch (error) {
-        console.error('Failed to load profile data:', error);
-        showErrorToast(error, 'Failed to load profile data');
-        setLoading(false);
-      }
+      setTimeout(() => setLoading(false), 500);
+    } catch (error) {
+      console.error('Failed to load profile data:', error);
+      showErrorToast(error, 'Failed to load profile data');
+      setLoading(false);
     }
-    
-    async function fetchClientMeasurements() {
-      try {
-        setStatsLoading(true);
-        
-        // Fetch all client measurements
-        const clientMeasurements = await ClientAPI.getClientMeasurements(30);
-        setMeasurements(clientMeasurements || []);
-        
-        if (clientMeasurements && clientMeasurements.length > 0) {
-          // Calculate client stats from measurements
-          const stats = calculateClientStats(clientMeasurements);
-          setClientStats(stats);
-        }
-        
-        setStatsLoading(false);
-      } catch (error) {
-        console.error('Failed to load client measurements:', error);
-        showErrorToast(error, 'Failed to load client measurements');
-        setStatsLoading(false);
-      }
-    }
-    
-    fetchProfileData();
-    fetchClientMeasurements();
-  }, []);
-
-  // Helper function to calculate client stats from measurements
-  const calculateClientStats = (measurementData) => {
-    if (!measurementData || measurementData.length === 0) {
-      return {
-        currentWeight: { value: 0, change: 0, unit: 'kg' },
-        bodyFat: { value: 0, change: 0, unit: '%' },
-        muscleGain: { value: 0, change: 0, unit: 'kg' }
-      };
-    }
-    
-    // Get latest and oldest measurements to calculate changes
-    const latest = measurementData[0];
-    const oldest = measurementData.length > 1 ? measurementData[measurementData.length - 1] : null;
-    
-    // Calculate weight stats
-    const currentWeight = {
-      value: parseFloat(latest.body_weight) || 0,
-      change: oldest ? parseFloat(latest.body_weight) - parseFloat(oldest.body_weight) : 0,
-      unit: 'kg'
-    };
-    
-    // Calculate body fat (using a simple estimation)
-    const estimateBodyFat = (measurement) => {
-      if (!measurement) return 0;
+  };
+  
+  /**
+   * Fetch client measurements and calculate stats
+   */
+  const fetchClientMeasurements = async (): Promise<void> => {
+    try {
+      setStatsLoading(true);
       
-      const waist = parseFloat(measurement.waist_size) || 0;
-      const chest = parseFloat(measurement.chest_size) || 0;
+      // Fetch all client measurements
+      const clientMeasurements = await ClientAPI.getClientMeasurements(30);
+      setMeasurements(clientMeasurements || []);
       
-      if (waist === 0 || chest === 0) return 0;
-      
-      // Simple formula (not medically accurate)
-      const ratio = waist / chest;
-      let bodyFat = (ratio * 100) - 30;
-      
-      // Ensure reasonable range
-      bodyFat = Math.max(5, Math.min(bodyFat, 35));
-      
-      return parseFloat(bodyFat.toFixed(1));
-    };
-    
-    const latestBodyFat = estimateBodyFat(latest);
-    const oldestBodyFat = oldest ? estimateBodyFat(oldest) : latestBodyFat;
-    
-    const bodyFat = {
-      value: latestBodyFat,
-      change: latestBodyFat - oldestBodyFat,
-      unit: '%'
-    };
-    
-    // Calculate muscle gain
-    const calculateMuscleGain = () => {
-      if (!latest || !oldest) return { value: 0, change: 0, unit: 'kg' };
-      
-      const weightChange = parseFloat(latest.body_weight) - parseFloat(oldest.body_weight);
-      const bodyFatChange = latestBodyFat - oldestBodyFat;
-      
-      let muscleGain = 0;
-      
-      // If weight increased but body fat decreased, it's likely muscle gain
-      if (weightChange > 0 && bodyFatChange <= 0) {
-        muscleGain = weightChange;
-      } 
-      // If weight decreased but body fat decreased more, there might still be muscle gain
-      else if (weightChange < 0 && bodyFatChange < -2) {
-        muscleGain = Math.abs(bodyFatChange) * 0.3;
+      if (clientMeasurements && clientMeasurements.length > 0) {
+        // Calculate client stats from measurements
+        const stats = await ClientAPI.getClientStats();
+        setClientStats(stats);
       }
       
-      return {
-        value: parseFloat(muscleGain.toFixed(1)),
-        change: parseFloat(muscleGain.toFixed(1)),
-        unit: 'kg'
-      };
-    };
-    
-    const muscleGain = calculateMuscleGain();
-    
-    return {
-      currentWeight,
-      bodyFat,
-      muscleGain
-    };
+      setStatsLoading(false);
+    } catch (error) {
+      console.error('Failed to load client measurements:', error);
+      showErrorToast(error, 'Failed to load client measurements');
+      setStatsLoading(false);
+    }
   };
 
-  // Handle adding new measurements
-  const handleAddMeasurement = async (newMeasurement) => {
+  /**
+   * Handle adding a new measurement
+   */
+  const handleAddMeasurement = async (newMeasurement: any): Promise<void> => {
     try {
       // Add the measurement using the API
       const success = await ClientAPI.addMeasurement(newMeasurement);
       
       if (success) {
         // Refresh measurements after adding new one
-        const updatedMeasurements = await ClientAPI.getClientMeasurements(30);
-        setMeasurements(updatedMeasurements || []);
-        
-        // Recalculate stats
-        if (updatedMeasurements && updatedMeasurements.length > 0) {
-          const stats = calculateClientStats(updatedMeasurements);
-          setClientStats(stats);
-        }
-        
+        await fetchClientMeasurements();
         showSuccessToast('Measurement added successfully');
       } else {
         showErrorToast(null, 'Failed to add measurement');
@@ -193,6 +138,12 @@ export default function ClientDashboard() {
       showErrorToast(error, 'Failed to add measurement');
     }
   };
+
+  // Load data when component mounts
+  useEffect(() => {
+    fetchProfileData();
+    fetchClientMeasurements();
+  }, []);
 
   return (
     <DashboardLayout userType={USER_TYPES.CLIENT}>
@@ -241,10 +192,7 @@ export default function ClientDashboard() {
           
           {/* Right Column - Progress Graph & Recent Workouts */}
           <div className="lg:col-span-2 space-y-6">
-            <ProgressGraph 
-              measurements={measurements}
-              isLoading={statsLoading}
-            />
+            <ProgressGraph />
             <RecentWorkoutsList />
           </div>
         </div>

@@ -18,14 +18,27 @@ import { z } from 'zod';
 import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 
-// Form schema for all measurements
+/**
+ * Form schema for validating measurement input
+ * Requires at least one measurement to be provided
+ */
 const measurementSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  body_weight: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
-  chest_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
-  waist_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
-  biceps_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
-  thigh_size: z.string().optional().transform(val => val === '' ? null : parseFloat(val)),
+  body_weight: z.string().optional()
+    .transform(val => val === '' ? null : parseFloat(val))
+    .refine(val => val === null || !isNaN(val), { message: 'Weight must be a valid number' }),
+  chest_size: z.string().optional()
+    .transform(val => val === '' ? null : parseFloat(val))
+    .refine(val => val === null || !isNaN(val), { message: 'Chest size must be a valid number' }),
+  waist_size: z.string().optional()
+    .transform(val => val === '' ? null : parseFloat(val))
+    .refine(val => val === null || !isNaN(val), { message: 'Waist size must be a valid number' }),
+  biceps_size: z.string().optional()
+    .transform(val => val === '' ? null : parseFloat(val))
+    .refine(val => val === null || !isNaN(val), { message: 'Biceps size must be a valid number' }),
+  thigh_size: z.string().optional()
+    .transform(val => val === '' ? null : parseFloat(val))
+    .refine(val => val === null || !isNaN(val), { message: 'Thigh size must be a valid number' }),
   notes: z.string().optional()
 }).refine(data => {
   // At least one measurement must be provided
@@ -39,22 +52,46 @@ const measurementSchema = z.object({
   path: ["body_weight"]
 });
 
+// Type for form values derived from the schema
 type MeasurementFormValues = z.infer<typeof measurementSchema>;
 
+// Interface for client progress data from the database
+export interface ClientProgress {
+  id: string;
+  client_id: string;
+  date: string;
+  body_weight: number | null;
+  chest_size: number | null;
+  waist_size: number | null;
+  biceps_size: number | null;
+  thigh_size: number | null;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Props for the MeasurementTracker component
 export interface MeasurementTrackerProps {
-  measurements: any[];
+  measurements: ClientProgress[];
   onAddMeasurement: (measurement: MeasurementFormValues) => Promise<void>;
   isLoading?: boolean;
 }
 
+/**
+ * MeasurementTracker Component
+ * Displays client body measurements and allows adding new measurements
+ */
 export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
   measurements = [],
   onAddMeasurement,
   isLoading = false
 }) => {
+  // Component state
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
+  // Setup form with validation
   const form = useForm<MeasurementFormValues>({
     resolver: zodResolver(measurementSchema),
     defaultValues: {
@@ -68,22 +105,27 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
     }
   });
 
+  /**
+   * Handle form submission
+   */
   const onSubmit = async (data: MeasurementFormValues) => {
     try {
       setSubmitting(true);
-      
       await onAddMeasurement(data);
-      
+      showSuccessToast('Measurement added successfully');
       form.reset();
       setShowForm(false);
     } catch (error) {
       console.error('Form submission error:', error);
+      showErrorToast(error, 'Failed to add measurement');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Get label for measurement type
+  /**
+   * Get human-readable label for measurement type
+   */
   const getMeasurementLabel = (type: string): string => {
     const labels: Record<string, string> = {
       body_weight: 'Weight',
@@ -96,36 +138,67 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
     return labels[type] || type;
   };
   
-  // Format measurement value with unit
-  const formatMeasurement = (type: string, value: number): string => {
-    if (type === 'body_weight') {
-      return `${value} kg`;
+  /**
+   * Format date for display
+   */
+  const formatDate = (dateString: string): string => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      console.error("Invalid date format:", dateString);
+      return dateString;
     }
-    return `${value} cm`;
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Body Measurements</CardTitle>
-        <Button 
-          variant={showForm ? "outline" : "blue"} 
-          size="sm"
-          onClick={() => setShowForm(!showForm)}
-          disabled={submitting}
-        >
-          {showForm ? 'Cancel' : 'Add Measurement'}
-        </Button>
+        <div className="flex space-x-2">
+          {/* Debug toggle button - only for development */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setDebugMode(!debugMode)}
+          >
+            {debugMode ? 'Hide Debug' : 'Debug'}
+          </Button>
+          <Button 
+            variant={showForm ? "outline" : "blue"} 
+            size="sm"
+            onClick={() => setShowForm(!showForm)}
+            disabled={submitting}
+          >
+            {showForm ? 'Cancel' : 'Add Measurement'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
+        {/* Debug information panel (only visible in debug mode) */}
+        {debugMode && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 font-medium">Debug Information</p>
+            <div className="text-xs mt-2 space-y-1">
+              <p>Total measurements: {measurements.length}</p>
+              <p>Raw measurements data:</p>
+              <pre className="mt-1 bg-gray-100 p-2 rounded overflow-x-auto text-xs">
+                {JSON.stringify(measurements, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+      
+        {/* Loading state */}
         {isLoading ? (
           <div className="flex justify-center items-center min-h-[200px]">
             <LoadingSpinner size="md" />
             <p className="ml-3 text-gray-500">Loading measurements...</p>
           </div>
         ) : showForm ? (
+          /* Measurement input form */
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Date input */}
               <FormField
                 control={form.control}
                 name="date"
@@ -140,6 +213,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 )}
               />
               
+              {/* Weight and chest size */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -170,6 +244,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 />
               </div>
               
+              {/* Waist and biceps size */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -200,6 +275,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 />
               </div>
               
+              {/* Thigh size */}
               <FormField
                 control={form.control}
                 name="thigh_size"
@@ -214,6 +290,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 )}
               />
               
+              {/* Notes field */}
               <FormField
                 control={form.control}
                 name="notes"
@@ -232,6 +309,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 )}
               />
               
+              {/* Submit button */}
               <Button type="submit" variant="blue" className="w-full" isLoading={submitting}>
                 Save Measurements
               </Button>
@@ -239,47 +317,39 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
           </Form>
         ) : (
           <>
-            {measurements.length > 0 ? (
+            {/* Measurements list or empty state */}
+            {measurements && measurements.length > 0 ? (
               <div className="space-y-2">
-                {measurements.slice(0, 5).map((measurement) => {
-                  // Find the first measurement value that exists
-                  const firstMeasureType = ['body_weight', 'chest_size', 'waist_size', 'biceps_size', 'thigh_size']
-                    .find(type => measurement[type] !== null && measurement[type] !== undefined);
-                  
-                  if (!firstMeasureType) return null;
-                  
-                  const measureLabel = getMeasurementLabel(firstMeasureType);
-                  const measureValue = formatMeasurement(firstMeasureType, measurement[firstMeasureType]);
-                  
-                  return (
-                    <div 
-                      key={measurement.id} 
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                    >
-                      <div className="flex items-center">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-[#007bff] mr-3">
-                          <Icon name="user" size={16} />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {new Date(measurement.date).toLocaleDateString()} Data
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {Object.entries(measurement)
-                              .filter(([key, value]) => 
-                                ['body_weight', 'chest_size', 'waist_size', 'biceps_size', 'thigh_size'].includes(key) && 
-                                value !== null && value !== undefined
-                              )
-                              .map(([key, value]) => `${getMeasurementLabel(key)}: ${value}${key === 'body_weight' ? 'kg' : 'cm'}`)
-                              .join(', ')
-                            }
-                          </p>
-                        </div>
+                {/* Display up to 5 measurements */}
+                {measurements.map((measurement) => (
+                  <div 
+                    key={measurement.id} 
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                  >
+                    <div className="flex items-center">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-[#007bff] mr-3">
+                        <Icon name="chart-line" size={16} />
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {formatDate(measurement.date)} Data
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {/* Display available measurements with labels */}
+                          {[
+                            measurement.body_weight !== null ? `Weight: ${measurement.body_weight}kg` : null,
+                            measurement.chest_size !== null ? `Chest: ${measurement.chest_size}cm` : null,
+                            measurement.waist_size !== null ? `Waist: ${measurement.waist_size}cm` : null,
+                            measurement.biceps_size !== null ? `Arms: ${measurement.biceps_size}cm` : null,
+                            measurement.thigh_size !== null ? `Legs: ${measurement.thigh_size}cm` : null
+                          ].filter(Boolean).join(', ')}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
                 
+                {/* View all button for more than 5 measurements */}
                 {measurements.length > 5 && (
                   <Button variant="outline" size="sm" className="w-full mt-2">
                     View All Measurements
@@ -287,6 +357,7 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                 )}
               </div>
             ) : (
+              /* Empty state when no measurements exist */
               <div className="text-center py-8">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-gray-500">
