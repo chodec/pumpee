@@ -210,6 +210,7 @@ export const ClientAPI = {
       return null;
     }
   },
+
   /**
    * Get client's statistics for dashboard
    */
@@ -266,156 +267,148 @@ export const ClientAPI = {
   },
   
   /**
- * Get client's measurements with proper error handling
- * Fetches measurements from client_progress table
- * 
- * @param limit - Maximum number of measurements to return
- * @returns Array of client measurements
- */
-getClientMeasurements: async (limit = 10): Promise<any[]> => {
-  try {
-    // Get current authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.error("No authenticated user found");
+   * Get client's measurements with proper error handling
+   */
+  getClientMeasurements: async (limit = 10): Promise<any[]> => {
+    try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error("No authenticated user found");
+        return [];
+      }
+      
+      // First get the client ID using the user ID
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+        
+      // Handle client record errors
+      if (clientError) {
+        // If no client record exists, create one
+        if (clientError.code === 'PGRST116') {
+          const { data: newClient, error: createError } = await supabase
+            .from('clients')
+            .insert({ user_id: user.id })
+            .select()
+            .single();
+            
+          if (createError) {
+            throw createError;
+          }
+          
+          // Return empty array since no measurements exist for new client
+          return [];
+        } else {
+          throw clientError;
+        }
+      }
+      
+      // Use the client ID to get the measurements
+      const { data, error } = await supabase
+        .from('client_progress')
+        .select(`
+          id, 
+          client_id, 
+          date, 
+          body_weight, 
+          chest_size, 
+          waist_size, 
+          biceps_size, 
+          thigh_size, 
+          notes, 
+          created_at, 
+          updated_at
+        `)
+        .eq('client_id', clientData.id)
+        .order('date', { ascending: false })
+        .limit(limit);
+        
+      if (error) {
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching client measurements:', error);
       return [];
     }
-    
-    // First get the client ID using the user ID
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-      
-    // Handle client record errors
-    if (clientError) {
-      // If no client record exists, create one
-      if (clientError.code === 'PGRST116') {
-        const { data: newClient, error: createError } = await supabase
-          .from('clients')
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-          
-        if (createError) {
-          throw createError;
-        }
-        
-        // Return empty array since no measurements exist for new client
-        return [];
-      } else {
-        throw clientError;
-      }
-    }
-    
-    // Use the client ID to get the measurements
-    const { data, error } = await supabase
-      .from('client_progress')
-      .select(`
-        id, 
-        client_id, 
-        date, 
-        body_weight, 
-        chest_size, 
-        waist_size, 
-        biceps_size, 
-        thigh_size, 
-        notes, 
-        created_at, 
-        updated_at
-      `)
-      .eq('client_id', clientData.id)
-      .order('date', { ascending: false })
-      .limit(limit);
-      
-    if (error) {
-      throw error;
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching client measurements:', error);
-    return [];
-  }
-},
+  },
 
-/**
- * Add a new measurement for the current client
- * Handles creating client record if needed
- * 
- * @param measurementData - The measurement data to add
- * @returns Boolean indicating success or failure
- */
-addMeasurement: async (measurementData: any): Promise<boolean> => {
-  try {
-    // Get current authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.error("No authenticated user found");
+  /**
+   * Add a new measurement for the current client
+   */
+  addMeasurement: async (measurementData: any): Promise<boolean> => {
+    try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error("No authenticated user found");
+        return false;
+      }
+      
+      // Get client ID or create client record if needed
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      let clientId: string;
+      
+      // Handle client record errors
+      if (clientError) {
+        // If no client record exists, create one
+        if (clientError.code === 'PGRST116') {
+          const { data: newClient, error: createError } = await supabase
+            .from('clients')
+            .insert({ user_id: user.id })
+            .select()
+            .single();
+            
+          if (createError) {
+            throw createError;
+          }
+          
+          clientId = newClient.id;
+        } else {
+          throw clientError;
+        }
+      } else {
+        clientId = clientData.id;
+      }
+      
+      // Prepare the measurement data with proper type conversion
+      const measurementToInsert = {
+        client_id: clientId,
+        date: measurementData.date,
+        body_weight: measurementData.body_weight !== null ? Number(measurementData.body_weight) : null,
+        chest_size: measurementData.chest_size !== null ? Number(measurementData.chest_size) : null,
+        waist_size: measurementData.waist_size !== null ? Number(measurementData.waist_size) : null,
+        biceps_size: measurementData.biceps_size !== null ? Number(measurementData.biceps_size) : null,
+        thigh_size: measurementData.thigh_size !== null ? Number(measurementData.thigh_size) : null,
+        notes: measurementData.notes || null
+      };
+      
+      // Insert measurement into the database
+      const { error } = await supabase
+        .from('client_progress')
+        .insert(measurementToInsert);
+        
+      if (error) {
+        throw error;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error adding measurement:', error);
       return false;
     }
-    
-    // Get client ID or create client record if needed
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-    
-    let clientId: string;
-    
-    // Handle client record errors
-    if (clientError) {
-      // If no client record exists, create one
-      if (clientError.code === 'PGRST116') {
-        const { data: newClient, error: createError } = await supabase
-          .from('clients')
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-          
-        if (createError) {
-          throw createError;
-        }
-        
-        clientId = newClient.id;
-      } else {
-        throw clientError;
-      }
-    } else {
-      clientId = clientData.id;
-    }
-    
-    // Prepare the measurement data with proper type conversion
-    const measurementToInsert = {
-      client_id: clientId,
-      date: measurementData.date,
-      body_weight: measurementData.body_weight !== null ? Number(measurementData.body_weight) : null,
-      chest_size: measurementData.chest_size !== null ? Number(measurementData.chest_size) : null,
-      waist_size: measurementData.waist_size !== null ? Number(measurementData.waist_size) : null,
-      biceps_size: measurementData.biceps_size !== null ? Number(measurementData.biceps_size) : null,
-      thigh_size: measurementData.thigh_size !== null ? Number(measurementData.thigh_size) : null,
-      notes: measurementData.notes || null
-    };
-    
-    // Insert measurement into the database
-    const { error } = await supabase
-      .from('client_progress')
-      .insert(measurementToInsert);
-      
-    if (error) {
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error adding measurement:', error);
-    return false;
   }
-}
 };
 
 /**
@@ -576,7 +569,7 @@ export const TrainerAPI = {
       return { data: [], count: 0 };
     }
   },
-  
+
   /**
    * Create menu for clients
    */
@@ -725,6 +718,53 @@ export const TrainerAPI = {
       return data || [];
     } catch (error) {
       console.error('Error fetching menus:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get trainer's created menu plans
+   */
+  getMenuPlans: async (): Promise<any[]> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return [];
+      
+      // Get trainer ID
+      const { data: trainerData, error: trainerError } = await supabase
+        .from('trainers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (trainerError) throw trainerError;
+      
+      // Get menu plans with their associated menus
+      const { data, error } = await supabase
+        .from('menu_plans')
+        .select(`
+          *,
+          menu_plan_items(
+            menu_id,
+            meal_order,
+            menus(*)
+          )
+        `)
+        .eq('trainer_id', trainerData.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      // Transform data to include menus array
+      const menuPlansWithMenus = (data || []).map(plan => ({
+        ...plan,
+        menus: plan.menu_plan_items?.map((item: any) => item.menus).filter(Boolean) || []
+      }));
+      
+      return menuPlansWithMenus;
+    } catch (error) {
+      console.error('Error fetching menu plans:', error);
       return [];
     }
   }

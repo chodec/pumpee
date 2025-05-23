@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/organisms/DashboardLayout";
 import SubscriptionBox from "@/components/features/trainer/SubscriptionBox";
+import MenuPlansOverview from "@/components/features/trainer/MenuPlansOverview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/organisms/Card";
 import { TrainerAPI, AuthAPI } from "@/lib/api";
 import { Button } from "@/components/atoms/Button";
@@ -48,91 +49,59 @@ export default function TrainerDashboard() {
 
   return (
     <DashboardLayout userType={USER_TYPES.TRAINER}>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Welcome card */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3">
-          <Card>
-            <CardContent className="p-6">
-              {loading ? (
-                <div className="flex items-center space-x-4">
-                  <LoadingSpinner size="sm" />
-                  <p>Loading profile...</p>
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    Welcome, {profile?.full_name || 'Trainer'}
-                  </h2>
-                  <p className="mt-2 text-gray-600">
-                    Here's an overview of your clients and schedule.
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Subscription Box - in first column */}
-        <div className="col-span-1">
-          <SubscriptionBox />
-        </div>
-
-        {/* Statistics cards */}
+      <div className="space-y-6">
+        {/* Welcome card - spans full width */}
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-500">
-                <Icon name="users" size={24} />
+            {loading ? (
+              <div className="flex items-center space-x-4">
+                <LoadingSpinner size="sm" />
+                <p>Loading profile...</p>
               </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Active Clients</h3>
-                <p className="text-lg font-semibold text-gray-800">{clients.length}</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Welcome, {profile?.full_name || 'Trainer'}
+                </h2>
+                <p className="mt-2 text-gray-600">
+                  Here's an overview of your clients and menu plans.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-500">
-                <Icon name="calendar" size={24} />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Sessions Today</h3>
-                <p className="text-lg font-semibold text-gray-800">4</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Three equal boxes in a row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Subscription Box */}
+          <div className="col-span-1">
+            <SubscriptionBox />
+          </div>
 
-        {/* Today's Schedule */}
-        <div className="col-span-1 md:col-span-2">
-          <Card>
-            <CardHeader className="p-6 pb-0">
-              <CardTitle>Today's Schedule</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div className="rounded-md border border-gray-200 p-3">
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-medium text-gray-800">Maria Garcia</p>
-                      <p className="text-sm text-gray-600">HIIT Training</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-800">9:00 AM - 10:00 AM</p>
-                      <p className="text-sm text-green-600">Confirmed</p>
-                    </div>
+          {/* Active Clients Card */}
+          <div className="col-span-1">
+            <Card className="h-full">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-500">
+                    <Icon name="users" size={24} />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Active Clients</h3>
+                    <p className="text-lg font-semibold text-gray-800">{clients.length}</p>
                   </div>
                 </div>
-                {/* Additional session items would go here */}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Menu Plans Card */}
+          <div className="col-span-1">
+            <MenuPlansOverview />
+          </div>
         </div>
 
-        {/* Client list */}
+        {/* Client list - spans full width below */}
         <Card>
           <CardHeader className="p-6 pb-0 flex items-center justify-between">
             <CardTitle>Clients Overview</CardTitle>
