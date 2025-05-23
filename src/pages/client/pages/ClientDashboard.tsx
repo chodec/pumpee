@@ -52,6 +52,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
   const [measurements, setMeasurements] = useState<ClientMeasurement[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0); // Add refresh trigger
   const [clientStats, setClientStats] = useState<ClientStats>({
     currentWeight: {
       value: 0,
@@ -129,6 +130,8 @@ export default function ClientDashboard() {
       if (success) {
         // Refresh measurements after adding new one
         await fetchClientMeasurements();
+        // Trigger refresh for the progress graph
+        setRefreshTrigger(prev => prev + 1);
         showSuccessToast('Measurement added successfully');
       } else {
         showErrorToast(null, 'Failed to add measurement');
@@ -192,7 +195,7 @@ export default function ClientDashboard() {
           
           {/* Right Column - Progress Graph & Recent Workouts */}
           <div className="lg:col-span-2 space-y-6">
-            <ProgressGraph />
+            <ProgressGraph refreshTrigger={refreshTrigger} />
             <RecentWorkoutsList />
           </div>
         </div>

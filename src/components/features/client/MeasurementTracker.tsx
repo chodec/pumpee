@@ -89,7 +89,6 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
   // Component state
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
 
   // Setup form with validation
   const form = useForm<MeasurementFormValues>({
@@ -154,40 +153,16 @@ export const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Body Measurements</CardTitle>
-        <div className="flex space-x-2">
-          {/* Debug toggle button - only for development */}
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setDebugMode(!debugMode)}
-          >
-            {debugMode ? 'Hide Debug' : 'Debug'}
-          </Button>
-          <Button 
-            variant={showForm ? "outline" : "blue"} 
-            size="sm"
-            onClick={() => setShowForm(!showForm)}
-            disabled={submitting}
-          >
-            {showForm ? 'Cancel' : 'Add Measurement'}
-          </Button>
-        </div>
+        <Button 
+          variant={showForm ? "outline" : "blue"} 
+          size="sm"
+          onClick={() => setShowForm(!showForm)}
+          disabled={submitting}
+        >
+          {showForm ? 'Cancel' : 'Add Measurement'}
+        </Button>
       </CardHeader>
       <CardContent>
-        {/* Debug information panel (only visible in debug mode) */}
-        {debugMode && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-600 font-medium">Debug Information</p>
-            <div className="text-xs mt-2 space-y-1">
-              <p>Total measurements: {measurements.length}</p>
-              <p>Raw measurements data:</p>
-              <pre className="mt-1 bg-gray-100 p-2 rounded overflow-x-auto text-xs">
-                {JSON.stringify(measurements, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
-      
         {/* Loading state */}
         {isLoading ? (
           <div className="flex justify-center items-center min-h-[200px]">
