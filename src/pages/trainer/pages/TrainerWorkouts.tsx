@@ -1,4 +1,4 @@
-// src/pages/trainer/pages/TrainerWorkouts.tsx - Complete Implementation
+// src/pages/trainer/pages/TrainerWorkouts.tsx - Simplified Version
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/organisms/DashboardLayout';
 import { Button } from '@/components/atoms/Button';
@@ -22,42 +22,18 @@ import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
 
 // ============================================================================
-// FORM SCHEMAS & TYPES
+// SIMPLIFIED FORM SCHEMAS
 // ============================================================================
 
 const createExerciseSchema = z.object({
   exercise_name: z.string().min(1, 'Exercise name is required'),
-  exercise_type: z.string().min(1, 'Exercise type is required'),
-  muscle_groups: z.array(z.string()).min(1, 'At least one muscle group is required'),
-  equipment: z.string().optional(),
-  difficulty_level: z.string().min(1, 'Difficulty level is required'),
-  instructions: z.string().min(1, 'Instructions are required'),
-  sets: z.string().optional()
-    .transform(val => val === '' ? undefined : parseInt(val))
-    .refine(val => val === undefined || val > 0, 'Sets must be positive'),
-  reps: z.string().optional()
-    .transform(val => val === '' ? undefined : parseInt(val))
-    .refine(val => val === undefined || val > 0, 'Reps must be positive'),
-  duration_minutes: z.string().optional()
-    .transform(val => val === '' ? undefined : parseInt(val))
-    .refine(val => val === undefined || val > 0, 'Duration must be positive'),
-  rest_seconds: z.string().optional()
-    .transform(val => val === '' ? undefined : parseInt(val))
-    .refine(val => val === undefined || val >= 0, 'Rest time must be non-negative'),
-  calories_per_minute: z.string().optional()
-    .transform(val => val === '' ? undefined : parseInt(val))
-    .refine(val => val === undefined || val > 0, 'Calories per minute must be positive'),
-  notes: z.string().optional()
+  series: z.string().min(1, 'Series is required'),
+  series_description: z.string().min(1, 'Series description is required')
 });
 
 const createWorkoutSchema = z.object({
   workout_name: z.string().min(1, 'Workout name is required'),
-  workout_type: z.string().min(1, 'Workout type is required'),
-  difficulty_level: z.string().min(1, 'Difficulty level is required'),
-  estimated_duration: z.string()
-    .min(1, 'Estimated duration is required')
-    .transform(val => parseInt(val))
-    .refine(val => val > 0, 'Duration must be positive'),
+  workout_day: z.string().min(1, 'Workout day is required'),
   description: z.string().optional(),
   selected_exercise_ids: z.array(z.string()).min(1, 'At least one exercise must be selected')
 });
@@ -69,49 +45,21 @@ type CreateWorkoutFormValues = z.infer<typeof createWorkoutSchema>;
 // CONSTANTS
 // ============================================================================
 
-const EXERCISE_TYPES = [
-  'Strength',
-  'Cardio',
-  'Flexibility',
-  'Sports',
-  'Other'
-];
-
-const MUSCLE_GROUPS = [
-  'Chest',
-  'Back',
-  'Shoulders',
-  'Arms',
-  'Legs',
-  'Core',
-  'Full Body'
-];
-
-const WORKOUT_TYPES = [
-  'Strength',
-  'Cardio',
-  'HIIT',
-  'Circuit',
-  'Stretching',
-  'Mixed'
-];
-
-const DIFFICULTY_LEVELS = [
-  'Beginner',
-  'Intermediate',
-  'Advanced'
-];
-
-const EQUIPMENT_OPTIONS = [
-  'None',
-  'Dumbbells',
-  'Barbell',
-  'Machine',
-  'Bodyweight',
-  'Resistance Bands',
-  'Kettlebell',
-  'Cable',
-  'Medicine Ball'
+const WORKOUT_DAYS = [
+  'Monday',
+  'Tuesday', 
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+  'Day 1',
+  'Day 2',
+  'Day 3',
+  'Day 4',
+  'Day 5',
+  'Day 6',
+  'Day 7'
 ];
 
 // ============================================================================
@@ -139,17 +87,8 @@ export default function TrainerWorkouts() {
     resolver: zodResolver(createExerciseSchema),
     defaultValues: {
       exercise_name: '',
-      exercise_type: '',
-      muscle_groups: [],
-      equipment: '',
-      difficulty_level: '',
-      instructions: '',
-      sets: '',
-      reps: '',
-      duration_minutes: '',
-      rest_seconds: '',
-      calories_per_minute: '',
-      notes: ''
+      series: '',
+      series_description: ''
     }
   });
 
@@ -157,9 +96,7 @@ export default function TrainerWorkouts() {
     resolver: zodResolver(createWorkoutSchema),
     defaultValues: {
       workout_name: '',
-      workout_type: '',
-      difficulty_level: '',
-      estimated_duration: '',
+      workout_day: '',
       description: '',
       selected_exercise_ids: []
     }
@@ -199,17 +136,8 @@ export default function TrainerWorkouts() {
       
       const exerciseData: CreateExerciseData = {
         exercise_name: data.exercise_name,
-        exercise_type: data.exercise_type,
-        muscle_groups: data.muscle_groups,
-        equipment: data.equipment || undefined,
-        difficulty_level: data.difficulty_level,
-        instructions: data.instructions,
-        sets: data.sets || undefined,
-        reps: data.reps || undefined,
-        duration_minutes: data.duration_minutes || undefined,
-        rest_seconds: data.rest_seconds || undefined,
-        calories_per_minute: data.calories_per_minute || undefined,
-        notes: data.notes || undefined
+        series: data.series,
+        series_description: data.series_description
       };
       
       const newExercise = await TrainerAPI.createExercise(exerciseData);
@@ -235,9 +163,7 @@ export default function TrainerWorkouts() {
       
       const workoutData: CreateWorkoutData = {
         workout_name: data.workout_name,
-        workout_type: data.workout_type,
-        difficulty_level: data.difficulty_level,
-        estimated_duration: data.estimated_duration,
+        workout_day: data.workout_day,
         description: data.description || undefined,
         selected_exercise_ids: data.selected_exercise_ids
       };
@@ -245,7 +171,8 @@ export default function TrainerWorkouts() {
       const newWorkout = await TrainerAPI.createWorkout(workoutData);
       
       if (newWorkout) {
-        setWorkouts(prev => [newWorkout, ...prev]);
+        // Refetch workouts to get the complete data with exercises
+        await fetchData();
         showSuccessToast('Workout created successfully');
         workoutForm.reset();
         setShowWorkoutForm(false);
@@ -295,51 +222,12 @@ export default function TrainerWorkouts() {
   // UTILITY FUNCTIONS
   // ========================================================================
   
-  const getDifficultyBadgeColor = (difficulty: string) => {
-    const colors: Record<string, string> = {
-      'Beginner': 'bg-green-100 text-green-800 border-green-200',
-      'Intermediate': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Advanced': 'bg-red-100 text-red-800 border-red-200'
-    };
-    return colors[difficulty] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
-
-  const getExerciseTypeBadgeColor = (exerciseType: string) => {
-    const colors: Record<string, string> = {
-      'Strength': 'bg-purple-100 text-purple-800 border-purple-200',
-      'Cardio': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Flexibility': 'bg-green-100 text-green-800 border-green-200',
-      'Sports': 'bg-orange-100 text-orange-800 border-orange-200',
-      'Other': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return colors[exerciseType] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
-
-  const getWorkoutTypeBadgeColor = (workoutType: string) => {
-    const colors: Record<string, string> = {
-      'Strength': 'bg-purple-100 text-purple-800',
-      'Cardio': 'bg-blue-100 text-blue-800',
-      'HIIT': 'bg-red-100 text-red-800',
-      'Circuit': 'bg-orange-100 text-orange-800',
-      'Stretching': 'bg-green-100 text-green-800',
-      'Mixed': 'bg-gray-100 text-gray-800'
-    };
-    return colors[workoutType] || 'bg-gray-100 text-gray-800';
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
-  };
-
-  const formatMuscleGroups = (muscleGroups: string[]) => {
-    if (muscleGroups.length <= 2) {
-      return muscleGroups.join(', ');
-    }
-    return `${muscleGroups.slice(0, 2).join(', ')} +${muscleGroups.length - 2}`;
   };
 
   // ========================================================================
@@ -350,14 +238,7 @@ export default function TrainerWorkouts() {
     <Card key={exercise.id} className="hover:shadow-md transition-shadow duration-200">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
-          <div className="flex flex-wrap gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getExerciseTypeBadgeColor(exercise.exercise_type)}`}>
-              {exercise.exercise_type}
-            </span>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getDifficultyBadgeColor(exercise.difficulty_level)}`}>
-              {exercise.difficulty_level}
-            </span>
-          </div>
+          <h3 className="font-semibold text-gray-900 text-lg">{exercise.exercise_name}</h3>
           <button 
             onClick={() => handleDeleteExercise(exercise.id)}
             className="text-red-400 hover:text-red-600 transition-colors"
@@ -367,34 +248,15 @@ export default function TrainerWorkouts() {
           </button>
         </div>
         
-        <h3 className="font-semibold text-gray-900 mb-2">{exercise.exercise_name}</h3>
-        
-        <div className="text-sm text-gray-600 mb-3">
-          <p className="font-medium">Muscle Groups: {formatMuscleGroups(exercise.muscle_groups)}</p>
-          {exercise.equipment && <p>Equipment: {exercise.equipment}</p>}
-        </div>
-
-        <div className="text-sm text-gray-600 mb-3">
-          {exercise.sets && exercise.reps && (
-            <p>{exercise.sets} sets × {exercise.reps} reps</p>
-          )}
-          {exercise.duration_minutes && (
-            <p>Duration: {exercise.duration_minutes} minutes</p>
-          )}
-          {exercise.rest_seconds && (
-            <p>Rest: {exercise.rest_seconds}s</p>
-          )}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+          <p className="font-medium text-blue-800 text-sm">Series:</p>
+          <p className="text-blue-700">{exercise.series}</p>
         </div>
         
-        <p className="text-xs text-gray-500 mb-3 line-clamp-2 bg-gray-50 p-2 rounded">
-          {exercise.instructions}
-        </p>
-        
-        {exercise.notes && (
-          <p className="text-xs text-gray-500 mb-3 line-clamp-2 bg-blue-50 p-2 rounded">
-            Note: {exercise.notes}
-          </p>
-        )}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+          <p className="font-medium text-gray-800 text-sm">Description:</p>
+          <p className="text-gray-700 text-sm">{exercise.series_description}</p>
+        </div>
         
         <div className="text-xs text-gray-400">
           Created {formatDate(exercise.created_at)}
@@ -407,7 +269,14 @@ export default function TrainerWorkouts() {
     <Card key={workout.id} className="hover:shadow-md transition-shadow duration-200">
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
-          <h3 className="font-semibold text-gray-900 text-lg">{workout.workout_name}</h3>
+          <div>
+            <h3 className="font-semibold text-gray-900 text-lg">{workout.workout_name}</h3>
+            <div className="flex items-center mt-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                {workout.workout_day}
+              </span>
+            </div>
+          </div>
           <button 
             onClick={() => handleDeleteWorkout(workout.id)}
             className="text-red-400 hover:text-red-600 transition-colors"
@@ -416,29 +285,10 @@ export default function TrainerWorkouts() {
             <Icon name="x" size={16} />
           </button>
         </div>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`px-3 py-1 rounded text-xs font-medium ${getWorkoutTypeBadgeColor(workout.workout_type)}`}>
-            {workout.workout_type}
-          </span>
-          <span className={`px-3 py-1 rounded text-xs font-medium border ${getDifficultyBadgeColor(workout.difficulty_level)}`}>
-            {workout.difficulty_level}
-          </span>
-        </div>
         
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <div className="text-lg font-bold text-[#007bff]">{workout.estimated_duration}</div>
-            <div className="text-xs text-gray-600">Minutes</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="text-lg font-bold text-gray-700">{workout.exercise_count || 0}</div>
-            <div className="text-xs text-gray-600">Exercises</div>
-          </div>
-          <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-100">
-            <div className="text-lg font-bold text-[#ff7f0e]">{workout.estimated_calories}</div>
-            <div className="text-xs text-gray-600">Calories</div>
-          </div>
+        <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+          <div className="text-lg font-bold text-gray-700">{workout.exercise_count || 0}</div>
+          <div className="text-xs text-gray-600">Exercises</div>
         </div>
         
         {workout.description && (
@@ -449,19 +299,16 @@ export default function TrainerWorkouts() {
         
         {workout.exercises && workout.exercises.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Exercises in this workout:</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Exercises:</h4>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {workout.exercises.map((exercise, index) => (
-                <div key={exercise.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded border">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-gray-500 font-mono w-6">#{index + 1}</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getExerciseTypeBadgeColor(exercise.exercise_type)}`}>
-                      {exercise.exercise_type}
-                    </span>
-                    <span className="font-medium truncate">{exercise.exercise_name}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 ml-2">
-                    {exercise.muscle_groups.slice(0, 2).join(', ')}
+                <div key={exercise.id} className="flex items-start justify-between text-sm p-2 bg-gray-50 rounded border">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="text-xs text-gray-500 font-mono w-6">#{index + 1}</span>
+                      <span className="font-medium">{exercise.exercise_name}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 ml-8">{exercise.series}</p>
                   </div>
                 </div>
               ))}
@@ -507,7 +354,7 @@ export default function TrainerWorkouts() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#040b07]">Workout Management</h1>
-            <p className="text-gray-600">Create exercises and organize them into workouts for your clients</p>
+            <p className="text-gray-600">Create exercises and organize them into day-based workouts</p>
           </div>
           <div className="flex space-x-3">
             {activeTab === 'exercises' && (
@@ -544,7 +391,7 @@ export default function TrainerWorkouts() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Individual Exercises ({exercises.length})
+              Exercises ({exercises.length})
             </button>
             <button
               onClick={() => setActiveTab('workouts')}
@@ -571,190 +418,14 @@ export default function TrainerWorkouts() {
                 <CardContent>
                   <Form {...exerciseForm}>
                     <form onSubmit={exerciseForm.handleSubmit(handleCreateExercise)} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={exerciseForm.control}
-                          name="exercise_name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Exercise Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g., Push-ups" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="exercise_type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Exercise Type</FormLabel>
-                              <FormControl>
-                                <select 
-                                  {...field}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                  <option value="">Select type</option>
-                                  {EXERCISE_TYPES.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                  ))}
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={exerciseForm.control}
-                          name="difficulty_level"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Difficulty Level</FormLabel>
-                              <FormControl>
-                                <select 
-                                  {...field}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                  <option value="">Select difficulty</option>
-                                  {DIFFICULTY_LEVELS.map(level => (
-                                    <option key={level} value={level}>{level}</option>
-                                  ))}
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="equipment"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Equipment (optional)</FormLabel>
-                              <FormControl>
-                                <select 
-                                  {...field}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                  <option value="">Select equipment</option>
-                                  {EQUIPMENT_OPTIONS.map(equipment => (
-                                    <option key={equipment} value={equipment}>{equipment}</option>
-                                  ))}
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium">Muscle Groups</label>
-                        <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-                          {MUSCLE_GROUPS.map((muscle) => (
-                            <label key={muscle} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                value={muscle}
-                                {...exerciseForm.register('muscle_groups')}
-                                className="rounded border-gray-300"
-                              />
-                              <span className="text-sm">{muscle}</span>
-                            </label>
-                          ))}
-                        </div>
-                        {exerciseForm.formState.errors.muscle_groups && (
-                          <p className="text-sm font-medium text-destructive mt-2">
-                            {exerciseForm.formState.errors.muscle_groups.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <FormField
-                          control={exerciseForm.control}
-                          name="sets"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Sets</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="3" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="reps"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Reps</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="10" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="duration_minutes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Duration (min)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="5" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="rest_seconds"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Rest (sec)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="60" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={exerciseForm.control}
-                          name="calories_per_minute"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Cal/min</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="5" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
                       <FormField
                         control={exerciseForm.control}
-                        name="instructions"
+                        name="exercise_name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Instructions</FormLabel>
+                            <FormLabel>Exercise Name</FormLabel>
                             <FormControl>
-                              <textarea 
-                                {...field}
-                                className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                placeholder="Describe how to perform this exercise..."
-                              />
+                              <Input {...field} placeholder="e.g., Push-ups" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -763,15 +434,29 @@ export default function TrainerWorkouts() {
 
                       <FormField
                         control={exerciseForm.control}
-                        name="notes"
+                        name="series"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes (optional)</FormLabel>
+                            <FormLabel>Series</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., 3 sets x 12 reps, 30 seconds x 3 rounds" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={exerciseForm.control}
+                        name="series_description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Series Description</FormLabel>
                             <FormControl>
                               <textarea 
                                 {...field}
-                                className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                placeholder="Any additional notes about this exercise..."
+                                className="flex h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                placeholder="Describe how to perform this exercise..."
                               />
                             </FormControl>
                             <FormMessage />
@@ -811,7 +496,7 @@ export default function TrainerWorkouts() {
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Exercises Created</h3>
                   <p className="text-gray-600 mb-6">
-                    Start by creating individual exercises that you can later organize into workouts.
+                    Start by creating exercises with simple series descriptions.
                   </p>
                   <Button variant="blue" onClick={() => setShowExerciseForm(true)}>
                     <Icon name="dumbbell" size={16} className="mr-2" />
@@ -839,71 +524,37 @@ export default function TrainerWorkouts() {
                 <CardContent>
                   <Form {...workoutForm}>
                     <form onSubmit={workoutForm.handleSubmit(handleCreateWorkout)} className="space-y-4">
-                      <FormField
-                        control={workoutForm.control}
-                        name="workout_name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Workout Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="e.g., Upper Body Strength" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={workoutForm.control}
+                          name="workout_name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Workout Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="e.g., Week 1 Training Plan" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField
                           control={workoutForm.control}
-                          name="workout_type"
+                          name="workout_day"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Workout Type</FormLabel>
+                              <FormLabel>Workout Day</FormLabel>
                               <FormControl>
                                 <select 
                                   {...field}
                                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
-                                  <option value="">Select type</option>
-                                  {WORKOUT_TYPES.map(type => (
-                                    <option key={type} value={type}>{type}</option>
+                                  <option value="">Select day</option>
+                                  {WORKOUT_DAYS.map(day => (
+                                    <option key={day} value={day}>{day}</option>
                                   ))}
                                 </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={workoutForm.control}
-                          name="difficulty_level"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Difficulty Level</FormLabel>
-                              <FormControl>
-                                <select 
-                                  {...field}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                  <option value="">Select difficulty</option>
-                                  {DIFFICULTY_LEVELS.map(level => (
-                                    <option key={level} value={level}>{level}</option>
-                                  ))}
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={workoutForm.control}
-                          name="estimated_duration"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Duration (minutes)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="45" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -948,19 +599,10 @@ export default function TrainerWorkouts() {
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center space-x-2 mb-1">
-                                      <span className={`px-2 py-0.5 rounded text-xs border ${getExerciseTypeBadgeColor(exercise.exercise_type)}`}>
-                                        {exercise.exercise_type}
-                                      </span>
-                                      <span className={`px-2 py-0.5 rounded text-xs border ${getDifficultyBadgeColor(exercise.difficulty_level)}`}>
-                                        {exercise.difficulty_level}
-                                      </span>
                                       <span className="font-medium">{exercise.exercise_name}</span>
                                     </div>
-                                    <p className="text-sm text-gray-600">
-                                      {formatMuscleGroups(exercise.muscle_groups)}
-                                      {exercise.sets && exercise.reps && ` • ${exercise.sets}×${exercise.reps}`}
-                                      {exercise.duration_minutes && ` • ${exercise.duration_minutes} min`}
-                                    </p>
+                                    <p className="text-sm text-blue-600 font-medium">{exercise.series}</p>
+                                    <p className="text-xs text-gray-600 mt-1">{exercise.series_description}</p>
                                   </div>
                                 </label>
                               ))}
@@ -1008,8 +650,8 @@ export default function TrainerWorkouts() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Workouts Created</h3>
                   <p className="text-gray-600 mb-6">
                     {exercises.length === 0 
-                      ? "Create some individual exercises first, then organize them into workouts."
-                      : "Organize your exercises into comprehensive workouts for your clients."
+                      ? "Create some exercises first, then organize them into day-based workouts."
+                      : "Organize your exercises into day-based workouts for your clients."
                     }
                   </p>
                   {exercises.length === 0 ? (

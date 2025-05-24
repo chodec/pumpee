@@ -1,4 +1,4 @@
-// src/pages/index.tsx - Updated with TrainerWorkouts route
+// src/pages/index.tsx - Fixed main entry point
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'

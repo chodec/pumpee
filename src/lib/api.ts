@@ -1,72 +1,9 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from '@/pages/features/auth/hooks/useAuth'
-import { Toaster } from 'sonner'
-import '../styles/index.css'
-
-// Main App Component
-import App from '@/pages/App'
-
-// Authentication Pages
-import Login from '@/pages/features/auth/pages/Login'
-import Register from '@/pages/features/auth/pages/Register'
-import UserTypeSelection from '@/pages/features/auth/pages/UserTypeSelection'
-import AuthCallback from '@/pages/features/auth/components/AuthCallback'
-
-// Client Pages
-import ClientDashboard from '@/pages/client/pages/ClientDashboard'
-
-// Trainer Pages
-import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard'
-import TrainerSubscriptions from '@/pages/trainer/pages/TrainerSubscriptions'
-import TrainerMenus from '@/pages/trainer/pages/TrainerMenus'
-import TrainerWorkouts from '@/pages/trainer/pages/TrainerWorkouts'
-
-// Static Pages
-import Legal from '@/pages/Legal'
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Main App Route */}
-          <Route path="/" element={<App />} />
-          
-          {/* Authentication Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/user-type-selection" element={<UserTypeSelection />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          
-          {/* Client Routes */}
-          <Route path="/client/dashboard" element={<ClientDashboard />} />
-          
-          {/* Trainer Routes */}
-          <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
-          <Route path="/trainer/subscriptions" element={<TrainerSubscriptions />} />
-          <Route path="/trainer/menus" element={<TrainerMenus />} />
-          <Route path="/trainer/workouts" element={<TrainerWorkouts />} />
-          
-          {/* Static Pages */}
-          <Route path="/legal" element={<Legal />} />
-          
-          {/* Catch-all route - redirects to home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        
-        {/* Global Toast Notifications */}
-        <Toaster position="top-right" richColors />
-      </BrowserRouter>
-    </AuthProvider>
-  </React.StrictMode>,
-)
+// src/lib/api.ts - Complete Simplified API
 import { supabase } from '@/lib/supabaseClient';
 import { UserProfile, UserType, SubscriptionTier } from '@/lib/types';
 
 // ============================================================================
-// TYPE DEFINITIONS
+// SIMPLIFIED TYPE DEFINITIONS
 // ============================================================================
 
 export interface ClientProgress {
@@ -83,23 +20,28 @@ export interface ClientProgress {
   updated_at?: string;
 }
 
+// Simplified Exercise - just name, series, and description
 export interface Exercise {
   id: string;
   trainer_id: string;
   exercise_name: string;
-  exercise_type: string;
-  muscle_groups: string[];
-  equipment?: string | null;
-  difficulty_level: string;
-  instructions: string;
-  sets?: number | null;
-  reps?: number | null;
-  duration_minutes?: number | null;
-  rest_seconds?: number | null;
-  calories_per_minute?: number | null;
-  notes?: string | null;
+  series: string; // e.g., "3 sets x 12 reps"
+  series_description: string;
   created_at: string;
   updated_at: string;
+}
+
+// Simplified Workout - day-based with exercises
+export interface Workout {
+  id: string;
+  trainer_id: string;
+  workout_name: string;
+  workout_day: string; // e.g., "Monday", "Day 1"
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  exercises?: Exercise[];
+  exercise_count?: number;
 }
 
 export interface WorkoutExercise {
@@ -107,29 +49,8 @@ export interface WorkoutExercise {
   workout_id: string;
   exercise_id: string;
   exercise_order: number;
-  sets?: number | null;
-  reps?: number | null;
-  duration_minutes?: number | null;
-  rest_seconds?: number | null;
-  notes?: string | null;
+  notes?: string;
   exercise?: Exercise;
-}
-
-export interface Workout {
-  id: string;
-  trainer_id: string;
-  workout_name: string;
-  workout_type: string;
-  difficulty_level: string;
-  estimated_duration: number;
-  total_exercises: number;
-  estimated_calories: number;
-  description?: string | null;
-  created_at: string;
-  updated_at: string;
-  workout_exercises?: WorkoutExercise[];
-  exercises?: Exercise[];
-  exercise_count?: number;
 }
 
 export interface ClientWorkout {
@@ -137,12 +58,8 @@ export interface ClientWorkout {
   client_id: string;
   workout_id: string;
   assigned_date: string;
-  scheduled_date?: string | null;
-  status: string;
-  completed_at?: string | null;
-  actual_duration?: number | null;
-  client_notes?: string | null;
-  trainer_notes?: string | null;
+  status: 'assigned' | 'in_progress' | 'completed';
+  trainer_notes?: string;
   created_at: string;
   updated_at: string;
   workout?: Workout;
@@ -150,36 +67,18 @@ export interface ClientWorkout {
 
 export interface CreateExerciseData {
   exercise_name: string;
-  exercise_type: string;
-  muscle_groups: string[];
-  equipment?: string;
-  difficulty_level: string;
-  instructions: string;
-  sets?: number;
-  reps?: number;
-  duration_minutes?: number;
-  rest_seconds?: number;
-  calories_per_minute?: number;
-  notes?: string;
+  series: string;
+  series_description: string;
 }
 
 export interface CreateWorkoutData {
   workout_name: string;
-  workout_type: string;
-  difficulty_level: string;
-  estimated_duration: number;
+  workout_day: string;
   description?: string;
   selected_exercise_ids: string[];
-  exercise_overrides?: {
-    exercise_id: string;
-    sets?: number;
-    reps?: number;
-    duration_minutes?: number;
-    rest_seconds?: number;
-    notes?: string;
-  }[];
 }
 
+// Menu types remain the same
 export interface Menu {
   id: string;
   trainer_id: string;
@@ -237,9 +136,6 @@ export interface CreateMenuPlanData {
 // ============================================================================
 
 export const AuthAPI = {
-  /**
-   * Get the current user's profile data
-   */
   getUserProfile: async (): Promise<UserProfile | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -261,9 +157,6 @@ export const AuthAPI = {
     }
   },
   
-  /**
-   * Get the current user's type (client or trainer)
-   */
   getUserType: async (): Promise<UserType | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -285,9 +178,6 @@ export const AuthAPI = {
     }
   },
   
-  /**
-   * Check if email exists in the database
-   */
   checkEmailExists: async (email: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -305,12 +195,8 @@ export const AuthAPI = {
     }
   },
 
-  /**
-   * Update user type and create appropriate profile
-   */
   updateUserType: async (userId: string, userType: UserType): Promise<boolean> => {
     try {
-      // Update user type
       const { error: updateError } = await supabase
         .from('users')
         .update({ user_type: userType })
@@ -318,7 +204,6 @@ export const AuthAPI = {
         
       if (updateError) throw updateError;
       
-      // Create profile based on user type
       if (userType === 'client') {
         const { error: clientError } = await supabase
           .from('clients')
@@ -326,7 +211,6 @@ export const AuthAPI = {
           
         if (clientError) throw clientError;
       } else {
-        // For trainers, get basic subscription tier
         const { data: basicTier, error: tierError } = await supabase
           .from('subscription_tiers')
           .select('id')
@@ -358,9 +242,6 @@ export const AuthAPI = {
 // ============================================================================
 
 export const ClientAPI = {
-  /**
-   * Get client's profile data
-   */
   getClientProfile: async (): Promise<any | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -382,9 +263,6 @@ export const ClientAPI = {
     }
   },
 
-  /**
-   * Get client's measurements with proper error handling
-   */
   getClientMeasurements: async (limit = 10): Promise<ClientProgress[]> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -394,14 +272,12 @@ export const ClientAPI = {
         return [];
       }
       
-      // First get the client ID using the user ID
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id')
         .eq('user_id', user.id)
         .single();
         
-      // Handle client record errors
       if (clientError) {
         if (clientError.code === 'PGRST116') {
           const { data: newClient, error: createError } = await supabase
@@ -417,7 +293,6 @@ export const ClientAPI = {
         }
       }
       
-      // Use the client ID to get the measurements
       const { data, error } = await supabase
         .from('client_progress')
         .select(`
@@ -446,9 +321,6 @@ export const ClientAPI = {
     }
   },
 
-  /**
-   * Add a new measurement for the current client
-   */
   addMeasurement: async (measurementData: any): Promise<boolean> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -458,7 +330,6 @@ export const ClientAPI = {
         return false;
       }
       
-      // Get client ID or create client record if needed
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id')
@@ -484,7 +355,6 @@ export const ClientAPI = {
         clientId = clientData.id;
       }
       
-      // Prepare the measurement data with proper type conversion
       const measurementToInsert = {
         client_id: clientId,
         date: measurementData.date,
@@ -496,7 +366,6 @@ export const ClientAPI = {
         notes: measurementData.notes || null
       };
       
-      // Insert measurement into the database
       const { error } = await supabase
         .from('client_progress')
         .insert(measurementToInsert);
@@ -510,9 +379,6 @@ export const ClientAPI = {
     }
   },
 
-  /**
-   * Get client's statistics for dashboard
-   */
   getClientStats: async (): Promise<any> => {
     try {
       const measurements = await ClientAPI.getClientMeasurements(10);
@@ -528,14 +394,12 @@ export const ClientAPI = {
       const latest = measurements[0]; 
       const oldest = measurements.length > 1 ? measurements[measurements.length - 1] : null;
       
-      // Calculate weight change
       const currentWeight = {
         value: parseFloat(latest.body_weight?.toString() || '0') || 0,
         change: oldest ? (parseFloat(latest.body_weight?.toString() || '0') - parseFloat(oldest.body_weight?.toString() || '0')) : 0,
         unit: 'kg'
       };
       
-      // Calculate estimated body fat (based on measurements)
       const latestBodyFat = estimateBodyFat(latest);
       const oldestBodyFat = oldest ? estimateBodyFat(oldest) : latestBodyFat;
       
@@ -545,7 +409,6 @@ export const ClientAPI = {
         unit: '%'
       };
       
-      // Calculate estimated muscle gain
       const muscleGain = estimateMuscleGain(latest, oldest);
       
       return {
@@ -563,9 +426,6 @@ export const ClientAPI = {
     }
   },
 
-  /**
-   * Get client's assigned trainer
-   */
   getAssignedTrainer: async (): Promise<any | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -580,7 +440,6 @@ export const ClientAPI = {
         
       if (clientError) return null;
       
-      // Get trainer relationship
       const { data: relationData, error: relationError } = await supabase
         .from('client_trainers')
         .select(`
@@ -616,13 +475,10 @@ export const ClientAPI = {
 };
 
 // ============================================================================
-// TRAINER API
+// TRAINER API - SIMPLIFIED
 // ============================================================================
 
 export const TrainerAPI = {
-  /**
-   * Get current trainer ID
-   */
   getTrainerId: async (): Promise<string | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -642,9 +498,6 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Get trainer's subscription details
-   */
   getSubscription: async (): Promise<SubscriptionTier | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -674,9 +527,6 @@ export const TrainerAPI = {
     }
   },
   
-  /**
-   * Update trainer's subscription
-   */
   updateSubscription: async (tierId: string): Promise<boolean> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -697,9 +547,6 @@ export const TrainerAPI = {
     }
   },
   
-  /**
-   * Get count of trainer's clients
-   */
   getClientCount: async (): Promise<number> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -720,9 +567,6 @@ export const TrainerAPI = {
     }
   },
   
-  /**
-   * Get all subscription tiers
-   */
   getAllSubscriptionTiers: async (): Promise<SubscriptionTier[]> => {
     try {
       const { data, error } = await supabase
@@ -739,9 +583,227 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Get trainer's individual menus
-   */
+  // ========================================================================
+  // SIMPLIFIED EXERCISES
+  // ========================================================================
+  
+  getExercises: async (): Promise<Exercise[]> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) return [];
+      
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('trainer_id', trainerId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      return data as Exercise[];
+    } catch (error) {
+      console.error('Error fetching exercises:', error);
+      return [];
+    }
+  },
+
+  createExercise: async (exerciseData: CreateExerciseData): Promise<Exercise | null> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+      
+      const { data, error } = await supabase
+        .from('exercises')
+        .insert({
+          trainer_id: trainerId,
+          exercise_name: exerciseData.exercise_name,
+          series: exerciseData.series,
+          series_description: exerciseData.series_description
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      return data as Exercise;
+    } catch (error) {
+      console.error('Error creating exercise:', error);
+      return null;
+    }
+  },
+
+  deleteExercise: async (exerciseId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('exercises')
+        .delete()
+        .eq('id', exerciseId);
+        
+      if (error) throw error;
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting exercise:', error);
+      return false;
+    }
+  },
+
+  // ========================================================================
+  // SIMPLIFIED WORKOUTS
+  // ========================================================================
+  
+  getWorkouts: async (): Promise<Workout[]> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) return [];
+      
+      const { data, error } = await supabase
+        .from('workouts')
+        .select(`
+          *,
+          workout_exercises(
+            id,
+            exercise_id,
+            exercise_order,
+            notes,
+            exercises(*)
+          )
+        `)
+        .eq('trainer_id', trainerId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      const workoutsWithExercises = (data || []).map(workout => {
+        const sortedItems = workout.workout_exercises?.sort((a, b) => a.exercise_order - b.exercise_order) || [];
+        const exercises = sortedItems.map(item => item.exercises).filter(Boolean) as Exercise[];
+        
+        return {
+          ...workout,
+          exercises,
+          exercise_count: exercises.length
+        } as Workout;
+      });
+      
+      return workoutsWithExercises;
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+      return [];
+    }
+  },
+
+  createWorkout: async (workoutData: CreateWorkoutData): Promise<Workout | null> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+      
+      const { data: workout, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          trainer_id: trainerId,
+          workout_name: workoutData.workout_name,
+          workout_day: workoutData.workout_day,
+          description: workoutData.description || null
+        })
+        .select()
+        .single();
+        
+      if (workoutError) throw workoutError;
+      
+      if (workoutData.selected_exercise_ids.length > 0) {
+        const workoutExerciseItems = workoutData.selected_exercise_ids.map((exerciseId, index) => ({
+          workout_id: workout.id,
+          exercise_id: exerciseId,
+          exercise_order: index + 1
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('workout_exercises')
+          .insert(workoutExerciseItems);
+          
+        if (itemsError) throw itemsError;
+      }
+      
+      return workout as Workout;
+    } catch (error) {
+      console.error('Error creating workout:', error);
+      return null;
+    }
+  },
+
+  deleteWorkout: async (workoutId: string): Promise<boolean> => {
+    try {
+      const { error: itemsError } = await supabase
+        .from('workout_exercises')
+        .delete()
+        .eq('workout_id', workoutId);
+        
+      if (itemsError) throw itemsError;
+      
+      const { error: workoutError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId);
+        
+      if (workoutError) throw workoutError;
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      return false;
+    }
+  },
+
+  assignWorkoutToClient: async (clientId: string, workoutId: string, trainerNotes?: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('client_workouts')
+        .insert({
+          client_id: clientId,
+          workout_id: workoutId,
+          trainer_notes: trainerNotes || null,
+          status: 'assigned'
+        });
+        
+      if (error) throw error;
+      
+      return true;
+    } catch (error) {
+      console.error('Error assigning workout to client:', error);
+      return false;
+    }
+  },
+
+  getClientWorkouts: async (clientId: string): Promise<ClientWorkout[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('client_workouts')
+        .select(`
+          *,
+          workout:workouts(
+            *,
+            workout_exercises(
+              *,
+              exercises(*)
+            )
+          )
+        `)
+        .eq('client_id', clientId)
+        .order('assigned_date', { ascending: false });
+        
+      if (error) throw error;
+      
+      return data as ClientWorkout[];
+    } catch (error) {
+      console.error('Error fetching client workouts:', error);
+      return [];
+    }
+  },
+
+  // ========================================================================
+  // MENU FUNCTIONS (UNCHANGED)
+  // ========================================================================
+
   getMenus: async (): Promise<Menu[]> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -762,9 +824,6 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Create a new menu
-   */
   createMenu: async (menuData: CreateMenuData): Promise<Menu | null> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -794,9 +853,6 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Get trainer's menu plans with properly ordered meals
-   */
   getMenuPlans: async (): Promise<MenuPlan[]> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -818,9 +874,7 @@ export const TrainerAPI = {
         
       if (error) throw error;
       
-      // Transform data to include properly ordered meals
       const menuPlansWithMenus = (data || []).map(plan => {
-        // Sort menu items by meal_order and extract meals
         const sortedItems = plan.menu_plan_items?.sort((a, b) => a.meal_order - b.meal_order) || [];
         const meals = sortedItems.map(item => item.menus).filter(Boolean) as Menu[];
         
@@ -839,15 +893,11 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Create a new menu plan with selected meals
-   */
   createMenuPlan: async (planData: CreateMenuPlanData): Promise<MenuPlan | null> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
       if (!trainerId) throw new Error('Trainer not found');
       
-      // Get selected meals to calculate totals
       const { data: selectedMeals, error: mealsError } = await supabase
         .from('menus')
         .select('*')
@@ -855,7 +905,6 @@ export const TrainerAPI = {
         
       if (mealsError) throw mealsError;
       
-      // Calculate nutrition totals
       const totals = selectedMeals.reduce((acc, meal) => ({
         calories: acc.calories + meal.calories,
         protein: acc.protein + meal.protein,
@@ -863,7 +912,6 @@ export const TrainerAPI = {
         fat: acc.fat + meal.fat
       }), { calories: 0, protein: 0, carbohydrates: 0, fat: 0 });
       
-      // Create menu plan
       const { data: menuPlan, error: planError } = await supabase
         .from('menu_plans')
         .insert({
@@ -879,7 +927,6 @@ export const TrainerAPI = {
         
       if (planError) throw planError;
       
-      // Create menu plan items with proper ordering
       const menuPlanItems = planData.selected_meal_ids.map((menuId, index) => ({
         menu_plan_id: menuPlan.id,
         menu_id: menuId,
@@ -892,7 +939,6 @@ export const TrainerAPI = {
         
       if (itemsError) throw itemsError;
       
-      // Return the created plan with meals
       const createdPlan: MenuPlan = {
         ...menuPlan,
         meals: selectedMeals,
@@ -906,9 +952,6 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Delete a menu
-   */
   deleteMenu: async (menuId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -925,12 +968,8 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Delete a menu plan
-   */
   deleteMenuPlan: async (menuPlanId: string): Promise<boolean> => {
     try {
-      // Delete menu plan items first (due to foreign key constraint)
       const { error: itemsError } = await supabase
         .from('menu_plan_items')
         .delete()
@@ -938,7 +977,6 @@ export const TrainerAPI = {
         
       if (itemsError) throw itemsError;
       
-      // Delete the menu plan
       const { error: planError } = await supabase
         .from('menu_plans')
         .delete()
@@ -953,9 +991,6 @@ export const TrainerAPI = {
     }
   },
 
-  /**
-   * Assign menu plan to client
-   */
   assignMenuPlanToClient: async (clientId: string, menuPlanId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -972,316 +1007,13 @@ export const TrainerAPI = {
       console.error('Error assigning menu plan to client:', error);
       return false;
     }
-  },
-
-  /**
-   * Get trainer's individual exercises
-   */
-  getExercises: async (): Promise<Exercise[]> => {
-    try {
-      const trainerId = await TrainerAPI.getTrainerId();
-      if (!trainerId) return [];
-      
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .eq('trainer_id', trainerId)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      return data as Exercise[];
-    } catch (error) {
-      console.error('Error fetching exercises:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Create a new exercise
-   */
-  createExercise: async (exerciseData: CreateExerciseData): Promise<Exercise | null> => {
-    try {
-      const trainerId = await TrainerAPI.getTrainerId();
-      if (!trainerId) throw new Error('Trainer not found');
-      
-      const { data, error } = await supabase
-        .from('exercises')
-        .insert({
-          trainer_id: trainerId,
-          exercise_name: exerciseData.exercise_name,
-          exercise_type: exerciseData.exercise_type,
-          muscle_groups: exerciseData.muscle_groups,
-          equipment: exerciseData.equipment || null,
-          difficulty_level: exerciseData.difficulty_level,
-          instructions: exerciseData.instructions,
-          sets: exerciseData.sets || null,
-          reps: exerciseData.reps || null,
-          duration_minutes: exerciseData.duration_minutes || null,
-          rest_seconds: exerciseData.rest_seconds || null,
-          calories_per_minute: exerciseData.calories_per_minute || null,
-          notes: exerciseData.notes || null
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      return data as Exercise;
-    } catch (error) {
-      console.error('Error creating exercise:', error);
-      return null;
-    }
-  },
-
-  /**
-   * Get trainer's workouts with properly ordered exercises
-   */
-  getWorkouts: async (): Promise<Workout[]> => {
-    try {
-      const trainerId = await TrainerAPI.getTrainerId();
-      if (!trainerId) return [];
-      
-      const { data, error } = await supabase
-        .from('workouts')
-        .select(`
-          *,
-          workout_exercises(
-            id,
-            exercise_id,
-            exercise_order,
-            sets,
-            reps,
-            duration_minutes,
-            rest_seconds,
-            notes,
-            exercises(*)
-          )
-        `)
-        .eq('trainer_id', trainerId)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      // Transform data to include properly ordered exercises
-      const workoutsWithExercises = (data || []).map(workout => {
-        // Sort exercises by exercise_order and extract exercise data
-        const sortedItems = workout.workout_exercises?.sort((a, b) => a.exercise_order - b.exercise_order) || [];
-        const exercises = sortedItems.map(item => item.exercises).filter(Boolean) as Exercise[];
-        
-        return {
-          ...workout,
-          exercises,
-          exercise_count: exercises.length,
-          workout_exercises: sortedItems
-        } as Workout;
-      });
-      
-      return workoutsWithExercises;
-    } catch (error) {
-      console.error('Error fetching workouts:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Create a new workout with selected exercises
-   */
-  createWorkout: async (workoutData: CreateWorkoutData): Promise<Workout | null> => {
-    try {
-      const trainerId = await TrainerAPI.getTrainerId();
-      if (!trainerId) throw new Error('Trainer not found');
-      
-      // Get selected exercises to calculate totals
-      const { data: selectedExercises, error: exercisesError } = await supabase
-        .from('exercises')
-        .select('*')
-        .in('id', workoutData.selected_exercise_ids);
-        
-      if (exercisesError) throw exercisesError;
-      
-      // Calculate estimated calories
-      const estimatedCalories = selectedExercises.reduce((acc, exercise) => {
-        const exerciseOverride = workoutData.exercise_overrides?.find(
-          override => override.exercise_id === exercise.id
-        );
-        
-        const duration = exerciseOverride?.duration_minutes || exercise.duration_minutes || 0;
-        const sets = exerciseOverride?.sets || exercise.sets || 1;
-        const caloriesPerMinute = exercise.calories_per_minute || 5;
-        
-        if (duration > 0) {
-          return acc + (duration * caloriesPerMinute);
-        } else {
-          // For strength exercises, estimate based on sets
-          return acc + (sets * caloriesPerMinute * 0.5);
-        }
-      }, 0);
-      
-      // Create workout
-      const { data: workout, error: workoutError } = await supabase
-        .from('workouts')
-        .insert({
-          trainer_id: trainerId,
-          workout_name: workoutData.workout_name,
-          workout_type: workoutData.workout_type,
-          difficulty_level: workoutData.difficulty_level,
-          estimated_duration: workoutData.estimated_duration,
-          total_exercises: workoutData.selected_exercise_ids.length,
-          estimated_calories: Math.round(estimatedCalories),
-          description: workoutData.description || null
-        })
-        .select()
-        .single();
-        
-      if (workoutError) throw workoutError;
-      
-      // Create workout exercise items with proper ordering and overrides
-      const workoutExerciseItems = workoutData.selected_exercise_ids.map((exerciseId, index) => {
-        const override = workoutData.exercise_overrides?.find(
-          override => override.exercise_id === exerciseId
-        );
-        
-        return {
-          workout_id: workout.id,
-          exercise_id: exerciseId,
-          exercise_order: index + 1,
-          sets: override?.sets || null,
-          reps: override?.reps || null,
-          duration_minutes: override?.duration_minutes || null,
-          rest_seconds: override?.rest_seconds || null,
-          notes: override?.notes || null
-        };
-      });
-      
-      const { error: itemsError } = await supabase
-        .from('workout_exercises')
-        .insert(workoutExerciseItems);
-        
-      if (itemsError) throw itemsError;
-      
-      // Return the created workout with exercises
-      const createdWorkout: Workout = {
-        ...workout,
-        exercises: selectedExercises,
-        exercise_count: selectedExercises.length
-      };
-      
-      return createdWorkout;
-    } catch (error) {
-      console.error('Error creating workout:', error);
-      return null;
-    }
-  },
-
-  /**
-   * Delete an exercise
-   */
-  deleteExercise: async (exerciseId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('exercises')
-        .delete()
-        .eq('id', exerciseId);
-        
-      if (error) throw error;
-      
-      return true;
-    } catch (error) {
-      console.error('Error deleting exercise:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Delete a workout
-   */
-  deleteWorkout: async (workoutId: string): Promise<boolean> => {
-    try {
-      // Delete workout exercises first (due to foreign key constraint)
-      const { error: itemsError } = await supabase
-        .from('workout_exercises')
-        .delete()
-        .eq('workout_id', workoutId);
-        
-      if (itemsError) throw itemsError;
-      
-      // Delete the workout
-      const { error: workoutError } = await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', workoutId);
-        
-      if (workoutError) throw workoutError;
-      
-      return true;
-    } catch (error) {
-      console.error('Error deleting workout:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Assign workout to client
-   */
-  assignWorkoutToClient: async (clientId: string, workoutId: string, scheduledDate?: string, trainerNotes?: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('client_workouts')
-        .insert({
-          client_id: clientId,
-          workout_id: workoutId,
-          scheduled_date: scheduledDate || null,
-          trainer_notes: trainerNotes || null,
-          status: 'assigned'
-        });
-        
-      if (error) throw error;
-      
-      return true;
-    } catch (error) {
-      console.error('Error assigning workout to client:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Get client's assigned workouts
-   */
-  getClientWorkouts: async (clientId: string): Promise<ClientWorkout[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('client_workouts')
-        .select(`
-          *,
-          workout:workouts(
-            *,
-            workout_exercises(
-              *,
-              exercises(*)
-            )
-          )
-        `)
-        .eq('client_id', clientId)
-        .order('assigned_date', { ascending: false });
-        
-      if (error) throw error;
-      
-      return data as ClientWorkout[];
-    } catch (error) {
-      console.error('Error fetching client workouts:', error);
-      return [];
-    }
-  },
+  }
 };
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * Estimate body fat percentage based on measurements
- */
 function estimateBodyFat(measurement: ClientProgress): number {
   if (!measurement) return 0;
   
@@ -1290,19 +1022,14 @@ function estimateBodyFat(measurement: ClientProgress): number {
   
   if (waist === 0 || chest === 0) return 0;
   
-  // Simple formula for estimation (not medically accurate)
   const ratio = waist / chest;
   let bodyFat = (ratio * 100) - 30;
   
-  // Ensure it's in a reasonable range
   bodyFat = Math.max(5, Math.min(bodyFat, 35));
   
   return parseFloat(bodyFat.toFixed(1));
 }
 
-/**
- * Estimate muscle gain
- */
 function estimateMuscleGain(latest: ClientProgress, oldest: ClientProgress | null): any {
   if (!latest || !oldest) {
     return {

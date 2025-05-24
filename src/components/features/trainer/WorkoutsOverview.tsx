@@ -1,4 +1,4 @@
-// src/components/features/trainer/WorkoutsOverview.tsx
+// src/components/features/trainer/WorkoutsOverview.tsx - Updated for simplified API
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/organisms/Card';
@@ -71,27 +71,6 @@ export default function WorkoutsOverview() {
   // ========================================================================
   // UTILITY FUNCTIONS
   // ========================================================================
-
-  const getDifficultyBadgeColor = (difficulty: string) => {
-    const colors: Record<string, string> = {
-      'Beginner': 'bg-green-100 text-green-800',
-      'Intermediate': 'bg-blue-100 text-blue-800',
-      'Advanced': 'bg-red-100 text-red-800'
-    };
-    return colors[difficulty] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getWorkoutTypeBadgeColor = (workoutType: string) => {
-    const colors: Record<string, string> = {
-      'Strength': 'bg-purple-100 text-purple-800',
-      'Cardio': 'bg-blue-100 text-blue-800',
-      'HIIT': 'bg-red-100 text-red-800',
-      'Circuit': 'bg-orange-100 text-orange-800',
-      'Stretching': 'bg-green-100 text-green-800',
-      'Mixed': 'bg-gray-100 text-gray-800'
-    };
-    return colors[workoutType] || 'bg-gray-100 text-gray-800';
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -206,23 +185,12 @@ export default function WorkoutsOverview() {
                             {workout.workout_name}
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getWorkoutTypeBadgeColor(workout.workout_type)}`}>
-                              {workout.workout_type}
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getDifficultyBadgeColor(workout.difficulty_level)}`}>
-                              {workout.difficulty_level}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {workout.workout_day}
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            {workout.exercise_count || 0} exercises • {workout.estimated_duration} min • Created {formatDate(workout.created_at)}
-                          </p>
-                        </div>
-                        <div className="text-right ml-4">
-                          <p className="font-semibold text-gray-900">
-                            {workout.estimated_calories} cal
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            ~{workout.estimated_duration} minutes
+                            {workout.exercise_count || 0} exercises • Created {formatDate(workout.created_at)}
                           </p>
                         </div>
                       </div>
@@ -231,7 +199,7 @@ export default function WorkoutsOverview() {
                       {workout.exercises && workout.exercises.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <div className="flex flex-wrap gap-1">
-                            {workout.exercises.slice(0, 3).map((exercise, index) => (
+                            {workout.exercises.slice(0, 2).map((exercise, index) => (
                               <span 
                                 key={exercise.id}
                                 className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800 font-medium"
@@ -239,9 +207,9 @@ export default function WorkoutsOverview() {
                                 #{index + 1} {exercise.exercise_name}
                               </span>
                             ))}
-                            {workout.exercises.length > 3 && (
+                            {workout.exercises.length > 2 && (
                               <span className="text-xs text-gray-500 px-2 py-1">
-                                +{workout.exercises.length - 3} more
+                                +{workout.exercises.length - 2} more
                               </span>
                             )}
                           </div>
