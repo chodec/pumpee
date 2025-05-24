@@ -1,87 +1,96 @@
-// src/components/features/trainer/MenuPlansOverview.tsx - Complete Rewrite
+// src/components/features/trainer/WorkoutsOverview.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/organisms/Card';
 import { Button } from '@/components/atoms/Button';
 import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 import Icon from '@/components/atoms/Icon';
-import { TrainerAPI, Menu, MenuPlan } from '@/lib/api';
+import { TrainerAPI, Exercise, Workout } from '@/lib/api';
 import { showErrorToast } from '@/lib/errors';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface MenuPlansStats {
-  totalPlans: number;
-  totalMenus: number;
-  recentPlans: MenuPlan[];
+interface WorkoutsStats {
+  totalWorkouts: number;
+  totalExercises: number;
+  recentWorkouts: Workout[];
 }
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
-export default function MenuPlansOverview() {
-  const [stats, setStats] = useState<MenuPlansStats>({
-    totalPlans: 0,
-    totalMenus: 0,
-    recentPlans: []
+export default function WorkoutsOverview() {
+  const [stats, setStats] = useState<WorkoutsStats>({
+    totalWorkouts: 0,
+    totalExercises: 0,
+    recentWorkouts: []
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchMenuStats() {
+    async function fetchWorkoutStats() {
       try {
         setIsLoading(true);
         setError(null);
         
-        const [menuPlans, individualMenus] = await Promise.all([
-          TrainerAPI.getMenuPlans(),
-          TrainerAPI.getMenus()
+        const [workouts, exercises] = await Promise.all([
+          TrainerAPI.getWorkouts(),
+          TrainerAPI.getExercises()
         ]);
 
-        const totalPlans = menuPlans?.length || 0;
-        const totalMenus = individualMenus?.length || 0;
+        const totalWorkouts = workouts?.length || 0;
+        const totalExercises = exercises?.length || 0;
 
-        // Get recent plans (last 3)
-        const recentPlans = (menuPlans || [])
+        // Get recent workouts (last 3)
+        const recentWorkouts = (workouts || [])
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 3);
 
         setStats({
-          totalPlans,
-          totalMenus,
-          recentPlans
+          totalWorkouts,
+          totalExercises,
+          recentWorkouts
         });
 
       } catch (error) {
-        console.error('Error fetching menu stats:', error);
-        setError('Failed to load menu statistics');
-        showErrorToast(error, 'Failed to load menu plans');
+        console.error('Error fetching workout stats:', error);
+        setError('Failed to load workout statistics');
+        showErrorToast(error, 'Failed to load workouts');
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchMenuStats();
+    fetchWorkoutStats();
   }, []);
 
   // ========================================================================
   // UTILITY FUNCTIONS
   // ========================================================================
 
-  const getMealTypeBadgeColor = (mealType: string) => {
+  const getDifficultyBadgeColor = (difficulty: string) => {
     const colors: Record<string, string> = {
-      'Breakfast': 'bg-yellow-100 text-yellow-800',
-      'Morning Snack': 'bg-green-100 text-green-800',
-      'Lunch': 'bg-blue-100 text-blue-800',
-      'Afternoon Snack': 'bg-purple-100 text-purple-800',
-      'Dinner': 'bg-red-100 text-red-800',
-      'Evening Snack': 'bg-gray-100 text-gray-800'
+      'Beginner': 'bg-green-100 text-green-800',
+      'Intermediate': 'bg-blue-100 text-blue-800',
+      'Advanced': 'bg-red-100 text-red-800'
     };
-    return colors[mealType] || 'bg-gray-100 text-gray-800';
+    return colors[difficulty] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getWorkoutTypeBadgeColor = (workoutType: string) => {
+    const colors: Record<string, string> = {
+      'Strength': 'bg-purple-100 text-purple-800',
+      'Cardio': 'bg-blue-100 text-blue-800',
+      'HIIT': 'bg-red-100 text-red-800',
+      'Circuit': 'bg-orange-100 text-orange-800',
+      'Stretching': 'bg-green-100 text-green-800',
+      'Mixed': 'bg-gray-100 text-gray-800'
+    };
+    return colors[workoutType] || 'bg-gray-100 text-gray-800';
   };
 
   const formatDate = (dateString: string) => {
@@ -100,7 +109,7 @@ export default function MenuPlansOverview() {
       <Card className="h-full">
         <CardContent className="flex flex-col items-center justify-center p-8 min-h-[280px]">
           <LoadingSpinner size="md" color="primary" />
-          <p className="text-sm text-gray-500 mt-4">Loading menu plans...</p>
+          <p className="text-sm text-gray-500 mt-4">Loading workouts...</p>
         </CardContent>
       </Card>
     );
@@ -117,12 +126,12 @@ export default function MenuPlansOverview() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
             <Icon name="x" size={24} className="text-red-600" />
           </div>
-          <h3 className="font-medium text-red-800 mb-2">Unable to load menu plans</h3>
+          <h3 className="font-medium text-red-800 mb-2">Unable to load workouts</h3>
           <p className="text-sm text-red-600 text-center mb-6">
             Please try refreshing the page
           </p>
           <Button variant="outline" size="sm">
-            <Link to="/trainer/menus">
+            <Link to="/trainer/workouts">
               Try Again
             </Link>
           </Button>
@@ -139,45 +148,31 @@ export default function MenuPlansOverview() {
     <Card className="h-full">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 mr-3">
-            <svg 
-              className="h-4 w-4 text-green-600" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 mr-3">
+            <Icon name="dumbbell" size={16} className="text-purple-600" />
           </div>
-          Menu Plans
+          Workouts
         </CardTitle>
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {stats.totalPlans === 0 ? (
+        {stats.totalWorkouts === 0 ? (
           // ================================================================
           // EMPTY STATE
           // ================================================================
           <div className="text-center py-6">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mx-auto mb-4">
-              <svg 
-                className="h-8 w-8 text-gray-400" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
+              <Icon name="dumbbell" size={24} className="text-gray-400" />
             </div>
             
-            <h3 className="text-lg font-medium text-gray-800 mb-2">No Menu Plans</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">No Workouts</h3>
             <p className="text-gray-600 text-sm mb-6">
-              Create your first menu plan to organize meals for your clients
+              Create your first workout to help your clients achieve their goals
             </p>
             
-            <Link to="/trainer/menus">
+            <Link to="/trainer/workouts">
               <Button variant="blue" size="sm">
-                Create Menu Plan
+                Create Workout
               </Button>
             </Link>
           </div>
@@ -189,56 +184,64 @@ export default function MenuPlansOverview() {
             {/* Statistics */}
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-[#007bff] mb-1">{stats.totalPlans}</div>
-                <div className="text-sm text-gray-600">Menu Plans</div>
+                <div className="text-2xl font-bold text-[#007bff] mb-1">{stats.totalWorkouts}</div>
+                <div className="text-sm text-gray-600">Workouts</div>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-[#ff7f0e] mb-1">{stats.totalMenus}</div>
-                <div className="text-sm text-gray-600">Individual Meals</div>
+                <div className="text-2xl font-bold text-[#ff7f0e] mb-1">{stats.totalExercises}</div>
+                <div className="text-sm text-gray-600">Exercises</div>
               </div>
             </div>
 
-            {/* Recent plans with meal details */}
-            {stats.recentPlans.length > 0 && (
+            {/* Recent workouts */}
+            {stats.recentWorkouts.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Recent Plans</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Recent Workouts</h4>
                 <div className="space-y-3">
-                  {stats.recentPlans.map((plan) => (
-                    <div key={plan.id} className="p-3 bg-gray-50 rounded-lg">
+                  {stats.recentWorkouts.map((workout) => (
+                    <div key={workout.id} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900 truncate">
-                            {plan.plan_name}
+                            {workout.workout_name}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            {plan.meal_count || 0} meals • Created {formatDate(plan.created_at)}
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getWorkoutTypeBadgeColor(workout.workout_type)}`}>
+                              {workout.workout_type}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getDifficultyBadgeColor(workout.difficulty_level)}`}>
+                              {workout.difficulty_level}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {workout.exercise_count || 0} exercises • {workout.estimated_duration} min • Created {formatDate(workout.created_at)}
                           </p>
                         </div>
                         <div className="text-right ml-4">
                           <p className="font-semibold text-gray-900">
-                            {plan.total_calories} kcal
+                            {workout.estimated_calories} cal
                           </p>
                           <p className="text-xs text-gray-500">
-                            P: {plan.total_protein}g | C: {plan.total_carbohydrates}g | F: {plan.total_fat}g
+                            ~{workout.estimated_duration} minutes
                           </p>
                         </div>
                       </div>
                       
-                      {/* Show first few meals in the plan */}
-                      {plan.meals && plan.meals.length > 0 && (
+                      {/* Show first few exercises in the workout */}
+                      {workout.exercises && workout.exercises.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-200">
                           <div className="flex flex-wrap gap-1">
-                            {plan.meals.slice(0, 3).map((meal, index) => (
+                            {workout.exercises.slice(0, 3).map((exercise, index) => (
                               <span 
-                                key={meal.id}
-                                className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getMealTypeBadgeColor(meal.meal_type)}`}
+                                key={exercise.id}
+                                className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800 font-medium"
                               >
-                                #{index + 1} {meal.meal_type}: {meal.food_details}
+                                #{index + 1} {exercise.exercise_name}
                               </span>
                             ))}
-                            {plan.meals.length > 3 && (
+                            {workout.exercises.length > 3 && (
                               <span className="text-xs text-gray-500 px-2 py-1">
-                                +{plan.meals.length - 3} more
+                                +{workout.exercises.length - 3} more
                               </span>
                             )}
                           </div>
@@ -254,13 +257,13 @@ export default function MenuPlansOverview() {
 
         {/* Action Button */}
         <div className="pt-2">
-          <Link to="/trainer/menus" className="block">
+          <Link to="/trainer/workouts" className="block">
             <Button 
               variant="blue" 
               size="full"
               className="group"
             >
-              <span>Manage Menu Plans</span>
+              <span>Manage Workouts</span>
               <svg 
                 className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" 
                 fill="none" 

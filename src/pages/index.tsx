@@ -1,3 +1,4 @@
+// src/pages/index.tsx - Updated with TrainerWorkouts route
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -21,6 +22,7 @@ import ClientDashboard from '@/pages/client/pages/ClientDashboard'
 import TrainerDashboard from '@/pages/trainer/pages/TrainerDashboard'
 import TrainerSubscriptions from '@/pages/trainer/pages/TrainerSubscriptions'
 import TrainerMenus from '@/pages/trainer/pages/TrainerMenus'
+import TrainerWorkouts from '@/pages/trainer/pages/TrainerWorkouts'
 
 // Static Pages
 import Legal from '@/pages/Legal'
@@ -46,6 +48,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
           <Route path="/trainer/subscriptions" element={<TrainerSubscriptions />} />
           <Route path="/trainer/menus" element={<TrainerMenus />} />
+          <Route path="/trainer/workouts" element={<TrainerWorkouts />} />
           
           {/* Static Pages */}
           <Route path="/legal" element={<Legal />} />
