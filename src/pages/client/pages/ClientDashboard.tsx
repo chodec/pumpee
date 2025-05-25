@@ -1,23 +1,19 @@
-// src/pages/client/pages/ClientDashboard.tsx - Refactored Version
+// src/pages/client/pages/ClientDashboard.tsx - Debug version to isolate the issue
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/organisms/DashboardLayout';
 import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 import { Card, CardContent } from '@/components/organisms/Card';
 import StatsOverview from '@/components/features/client/StatsOverview';
-import { ClientAPI, AuthAPI, ClientProgress } from '@/lib/api';
+import { ClientAPI, AuthAPI } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, ClientProgress } from '@/lib/types';
 
 // Import components
 import ClientSubscriptionBox from '@/components/features/client/ClientSubscriptionBox';
-import MeasurementTracker from '@/components/features/client/MeasurementTracker';
+import MeasurementTracker, { MeasurementFormValues } from '@/components/features/client/MeasurementTracker';
 import ProgressGraph from '@/components/features/client/ProgressGraph';
 import RecentWorkoutsList from '@/components/features/client/RecentWorkoutsList';
-
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
 
 interface ClientStat {
   value: number;
@@ -31,266 +27,121 @@ interface ClientStats {
   muscleGain: ClientStat;
 }
 
-interface DashboardState {
-  profile: UserProfile | null;
-  measurements: ClientProgress[];
-  clientStats: ClientStats;
-  refreshTrigger: number;
-  loading: {
-    profile: boolean;
-    measurements: boolean;
-    stats: boolean;
-  };
-  error: {
-    profile: string | null;
-    measurements: string | null;
-    stats: string | null;
-  };
-}
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 const INITIAL_STATS: ClientStats = {
   currentWeight: { value: 0, change: 0, unit: 'kg' },
   bodyFat: { value: 0, change: 0, unit: '%' },
   muscleGain: { value: 0, change: 0, unit: 'kg' }
 };
 
-const INITIAL_STATE: DashboardState = {
-  profile: null,
-  measurements: [],
-  clientStats: INITIAL_STATS,
-  refreshTrigger: 0,
-  loading: {
+const ClientDashboard: React.FC = () => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [measurements, setMeasurements] = useState<ClientProgress[]>([]);
+  const [clientStats, setClientStats] = useState<ClientStats>(INITIAL_STATS);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [loading, setLoading] = useState({
     profile: true,
     measurements: true,
     stats: true
-  },
-  error: {
-    profile: null,
-    measurements: null,
-    stats: null
-  }
-};
+  });
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-const updateLoadingState = (
-  prevState: DashboardState,
-  section: keyof DashboardState['loading'],
-  isLoading: boolean
-): DashboardState => ({
-  ...prevState,
-  loading: {
-    ...prevState.loading,
-    [section]: isLoading
-  }
-});
-
-const updateErrorState = (
-  prevState: DashboardState,
-  section: keyof DashboardState['error'],
-  error: string | null
-): DashboardState => ({
-  ...prevState,
-  error: {
-    ...prevState.error,
-    [section]: error
-  }
-});
-
-// ============================================================================
-// COMPONENT PARTS
-// ============================================================================
-
-interface WelcomeSectionProps {
-  profile: UserProfile | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-const WelcomeSection: React.FC<WelcomeSectionProps> = ({ profile, isLoading, error }) => (
-  <Card>
-    <CardContent className="p-6">
-      {isLoading ? (
-        <div className="flex items-center space-x-4">
-          <LoadingSpinner size="sm" />
-          <p>Loading profile...</p>
-        </div>
-      ) : error ? (
-        <div className="text-center py-4">
-          <p className="text-red-600 mb-2">Failed to load profile</p>
-          <p className="text-gray-600">Welcome to your dashboard</p>
-        </div>
-      ) : (
-        <>
-          <h2 className="text-xl font-semibold text-gray-800">
-            Welcome back, {profile?.full_name || 'Client'}
-          </h2>
-          <p className="mt-2 text-gray-600">
-            Track your fitness journey and achieve your goals. 
-            Here's an overview of your progress.
-          </p>
-        </>
-      )}
-    </CardContent>
-  </Card>
-);
-
-interface DashboardGridProps {
-  measurements: ClientProgress[];
-  clientStats: ClientStats;
-  refreshTrigger: number;
-  isStatsLoading: boolean;
-  isMeasurementsLoading: boolean;
-  onAddMeasurement: (measurement: any) => Promise<void>;
-  onRefreshTrigger: () => void;
-}
-
-const DashboardGrid: React.FC<DashboardGridProps> = ({
-  measurements,
-  clientStats,
-  refreshTrigger,
-  isStatsLoading,
-  isMeasurementsLoading,
-  onAddMeasurement,
-  onRefreshTrigger
-}) => (
-  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    {/* Left Column - Subscription Box & Measurements */}
-    <div className="lg:col-span-1 space-y-6">
-      <ClientSubscriptionBox />
-      <MeasurementTracker 
-        measurements={measurements}
-        onAddMeasurement={onAddMeasurement}
-        isLoading={isMeasurementsLoading}
-      />
-    </div>
-    
-    {/* Right Column - Progress Graph & Recent Workouts */}
-    <div className="lg:col-span-2 space-y-6">
-      <ProgressGraph 
-        refreshTrigger={refreshTrigger}
-      />
-      <RecentWorkoutsList />
-    </div>
-  </div>
-);
-
-// ============================================================================
-// CUSTOM HOOKS
-// ============================================================================
-
-const useClientDashboard = () => {
-  const [state, setState] = useState<DashboardState>(INITIAL_STATE);
-
-  // Update state helper
-  const updateState = useCallback((updates: Partial<DashboardState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  }, []);
+  console.log('🔍 ClientDashboard render:', {
+    profileLoading: loading.profile,
+    measurementsLoading: loading.measurements,
+    statsLoading: loading.stats,
+    measurementsCount: measurements.length,
+    profile: profile?.full_name
+  });
 
   // Fetch user profile
   const fetchProfile = useCallback(async () => {
     try {
-      setState(prev => updateLoadingState(prev, 'profile', true));
-      setState(prev => updateErrorState(prev, 'profile', null));
+      console.log('🔍 Fetching profile...');
+      setLoading(prev => ({ ...prev, profile: true }));
       
       const profileData = await AuthAPI.getUserProfile();
-      
-      updateState({ profile: profileData });
+      console.log('✅ Profile fetched:', profileData);
+      setProfile(profileData);
       
     } catch (error: any) {
-      console.error('Failed to load profile:', error);
-      const errorMessage = error?.message || 'Failed to load profile data';
-      setState(prev => updateErrorState(prev, 'profile', errorMessage));
+      console.error('❌ Failed to load profile:', error);
       showErrorToast(error, 'Failed to load profile data');
     } finally {
-      setState(prev => updateLoadingState(prev, 'profile', false));
+      setLoading(prev => ({ ...prev, profile: false }));
     }
-  }, [updateState]);
+  }, []);
 
   // Fetch measurements and calculate stats
   const fetchMeasurementsAndStats = useCallback(async () => {
     try {
-      setState(prev => ({
-        ...updateLoadingState(prev, 'measurements', true),
-        ...updateLoadingState(prev, 'stats', true)
-      }));
-      
-      setState(prev => ({
-        ...updateErrorState(prev, 'measurements', null),
-        ...updateErrorState(prev, 'stats', null)
-      }));
+      console.log('🔍 Fetching measurements and stats...');
+      setLoading(prev => ({ ...prev, measurements: true, stats: true }));
 
       // Fetch measurements
+      console.log('📊 Calling ClientAPI.getClientMeasurements...');
       const clientMeasurements = await ClientAPI.getClientMeasurements(30);
+      console.log('📊 Measurements received:', clientMeasurements);
       
-      updateState({ measurements: clientMeasurements || [] });
+      setMeasurements(clientMeasurements || []);
       
       // Calculate stats if we have measurements
       if (clientMeasurements && clientMeasurements.length > 0) {
+        console.log('📊 Calculating stats...');
         const stats = await ClientAPI.getClientStats();
-        updateState({ clientStats: stats || INITIAL_STATS });
+        console.log('📊 Stats calculated:', stats);
+        setClientStats(stats || INITIAL_STATS);
       } else {
-        updateState({ clientStats: INITIAL_STATS });
+        console.log('📊 No measurements, using default stats');
+        setClientStats(INITIAL_STATS);
       }
       
     } catch (error: any) {
-      console.error('Failed to load measurements:', error);
-      const errorMessage = error?.message || 'Failed to load measurements';
-      
-      setState(prev => ({
-        ...updateErrorState(prev, 'measurements', errorMessage),
-        ...updateErrorState(prev, 'stats', errorMessage)
-      }));
-      
+      console.error('❌ Failed to load measurements:', error);
       showErrorToast(error, 'Failed to load client data');
-      
-      // Set fallback data
-      updateState({ 
-        measurements: [],
-        clientStats: INITIAL_STATS 
-      });
-      
+      setMeasurements([]);
+      setClientStats(INITIAL_STATS);
     } finally {
-      setState(prev => ({
-        ...updateLoadingState(prev, 'measurements', false),
-        ...updateLoadingState(prev, 'stats', false)
-      }));
+      setLoading(prev => ({ ...prev, measurements: false, stats: false }));
     }
-  }, [updateState]);
+  }, []);
 
   // Add new measurement
-  const handleAddMeasurement = useCallback(async (measurementData: any) => {
+  const handleAddMeasurement = useCallback(async (measurementData: MeasurementFormValues) => {
     try {
-      const success = await ClientAPI.addMeasurement(measurementData);
+      console.log('📝 Adding measurement:', measurementData);
+      
+      // Convert the form data to the format expected by the API
+      const apiData = {
+        date: measurementData.date,
+        body_weight: measurementData.body_weight,
+        chest_size: measurementData.chest_size,
+        waist_size: measurementData.waist_size,
+        biceps_size: measurementData.biceps_size,
+        thigh_size: measurementData.thigh_size,
+        notes: measurementData.notes || null
+      };
+
+      console.log('📝 API data prepared:', apiData);
+      const success = await ClientAPI.addMeasurement(apiData);
       
       if (success) {
+        console.log('✅ Measurement added, refreshing data...');
         // Refresh data and trigger chart refresh
         await fetchMeasurementsAndStats();
-        updateState({ refreshTrigger: state.refreshTrigger + 1 });
+        setRefreshTrigger(prev => prev + 1);
         showSuccessToast('Measurement added successfully');
       } else {
         throw new Error('Failed to add measurement');
       }
     } catch (error: any) {
-      console.error('Error adding measurement:', error);
+      console.error('❌ Error adding measurement:', error);
       showErrorToast(error, 'Failed to add measurement');
       throw error; // Re-throw so the form can handle it
     }
-  }, [fetchMeasurementsAndStats, state.refreshTrigger, updateState]);
-
-  // Trigger refresh for charts
-  const triggerRefresh = useCallback(() => {
-    updateState({ refreshTrigger: state.refreshTrigger + 1 });
-  }, [state.refreshTrigger, updateState]);
+  }, [fetchMeasurementsAndStats]);
 
   // Initialize data on mount
   useEffect(() => {
+    console.log('🔍 ClientDashboard mounted, initializing data...');
     const initializeData = async () => {
       await Promise.all([
         fetchProfile(),
@@ -301,40 +152,45 @@ const useClientDashboard = () => {
     initializeData();
   }, [fetchProfile, fetchMeasurementsAndStats]);
 
-  return {
-    ...state,
-    handleAddMeasurement,
-    triggerRefresh,
-    refetchProfile: fetchProfile,
-    refetchMeasurements: fetchMeasurementsAndStats
-  };
-};
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
-const ClientDashboard: React.FC = () => {
-  const {
-    profile,
-    measurements,
-    clientStats,
-    refreshTrigger,
-    loading,
-    error,
-    handleAddMeasurement,
-    triggerRefresh
-  } = useClientDashboard();
-
   return (
     <DashboardLayout userType={USER_TYPES.CLIENT}>
       <div className="space-y-6">
         {/* Welcome Section */}
-        <WelcomeSection 
-          profile={profile}
-          isLoading={loading.profile}
-          error={error.profile}
-        />
+        <Card>
+          <CardContent className="p-6">
+            {loading.profile ? (
+              <div className="flex items-center space-x-4">
+                <LoadingSpinner size="sm" />
+                <p>Loading profile...</p>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Welcome back, {profile?.full_name || 'Client'}
+                </h2>
+                <p className="mt-2 text-gray-600">
+                  Track your fitness journey and achieve your goals. 
+                  Here's an overview of your progress.
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Debug Info */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Debug Information</h3>
+            <div className="space-y-2 text-sm">
+              <p><strong>Profile Loading:</strong> {loading.profile ? 'Yes' : 'No'}</p>
+              <p><strong>Measurements Loading:</strong> {loading.measurements ? 'Yes' : 'No'}</p>
+              <p><strong>Stats Loading:</strong> {loading.stats ? 'Yes' : 'No'}</p>
+              <p><strong>Measurements Count:</strong> {measurements.length}</p>
+              <p><strong>Profile Name:</strong> {profile?.full_name || 'Not loaded'}</p>
+              <p><strong>Refresh Trigger:</strong> {refreshTrigger}</p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Overview */}
         <StatsOverview 
@@ -345,15 +201,36 @@ const ClientDashboard: React.FC = () => {
         />
         
         {/* Main Dashboard Grid */}
-        <DashboardGrid
-          measurements={measurements}
-          clientStats={clientStats}
-          refreshTrigger={refreshTrigger}
-          isStatsLoading={loading.stats}
-          isMeasurementsLoading={loading.measurements}
-          onAddMeasurement={handleAddMeasurement}
-          onRefreshTrigger={triggerRefresh}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Subscription Box & Measurements */}
+          <div className="lg:col-span-1 space-y-6">
+            <ClientSubscriptionBox />
+            
+            {/* Measurement Tracker with Debug */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Measurement Tracker Debug</h3>
+                <div className="space-y-2 text-sm mb-4">
+                  <p><strong>Is Loading:</strong> {loading.measurements ? 'Yes' : 'No'}</p>
+                  <p><strong>Measurements Array:</strong> {JSON.stringify(measurements, null, 2)}</p>
+                  <p><strong>Handler Type:</strong> {typeof handleAddMeasurement}</p>
+                </div>
+                
+                <MeasurementTracker 
+                  measurements={measurements}
+                  onAddMeasurement={handleAddMeasurement}
+                  isLoading={loading.measurements}
+                />
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Right Column - Progress Graph & Recent Workouts */}
+          <div className="lg:col-span-2 space-y-6">
+            <ProgressGraph refreshTrigger={refreshTrigger} />
+            <RecentWorkoutsList />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

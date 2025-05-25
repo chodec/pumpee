@@ -1,4 +1,4 @@
-// src/lib/api/types.ts - All type definitions
+// src/lib/types.ts - Consolidated all types here
 export interface ClientProgress {
   id: string;
   client_id: string;
@@ -119,4 +119,59 @@ export interface CreateMenuData {
 export interface CreateMenuPlanData {
   plan_name: string;
   selected_meal_ids: string[];
+}
+
+// Authentication types
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone_number?: string;
+  registration_method?: string;
+  user_type: UserType;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type UserType = 'client' | 'trainer';
+
+export interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
+export interface RegistrationFormValues {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface AuthData {
+  session: any;
+  user: any;
+  isLoading: boolean;
+  error: Error | null;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userData: { fullName: string }) => Promise<{ error: any }>;
+  signOut: () => Promise<void>;
+  getUserType: () => Promise<UserType | null>;
+  getUserProfile: () => Promise<UserProfile | null>;
+}
+
+// Subscription types
+export interface SubscriptionTier {
+  id: string;
+  name: string;
+  description?: string;
+  price: number | null;
+  yearly_price?: number | null;
+  sale_price?: number | null;
+  billing_cycle: string;
+  client_limit: number | null;
+  justification?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }

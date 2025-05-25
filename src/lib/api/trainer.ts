@@ -1,7 +1,16 @@
-// src/lib/api/trainer.ts - Trainer related API calls
+// src/lib/api/trainer.ts - Updated to import from consolidated types
 import { supabase } from '@/lib/supabaseClient';
-import { SubscriptionTier } from '../types';
-import { Exercise, Workout, Menu, MenuPlan, CreateExerciseData, CreateWorkoutData, CreateMenuData, CreateMenuPlanData } from './types';
+import { 
+  SubscriptionTier, 
+  Exercise, 
+  Workout, 
+  Menu, 
+  MenuPlan, 
+  CreateExerciseData, 
+  CreateWorkoutData, 
+  CreateMenuData, 
+  CreateMenuPlanData 
+} from '../types';
 
 export const TrainerAPI = {
   getTrainerId: async (): Promise<string | null> => {
