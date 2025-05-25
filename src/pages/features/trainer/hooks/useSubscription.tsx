@@ -1,126 +1,146 @@
-// src/pages/features/trainer/hooks/useSubscription.tsx
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+// src/pages/features/trainer/hooks/useSubscription.tsx - Refactored Version
+import { useState, useEffect, useCallback } from 'react';
+import { TrainerAPI } from '@/lib/api';
 import { SubscriptionTier } from '@/lib/types';
 
-// Define return type for the hook
-export interface SubscriptionData {
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+export interface SubscriptionState {
   subscription: SubscriptionTier | null;
   clientCount: number;
-  clientLimit: number | null;
-  usagePercentage: number;
   isLoading: boolean;
   error: Error | null;
+}
+
+export interface SubscriptionData extends SubscriptionState {
+  clientLimit: number | null;
+  usagePercentage: number;
   refetch: () => Promise<void>;
 }
 
-/**
- * Custom hook to fetch trainer's current subscription data
- */
-export function useSubscription(): SubscriptionData {
-  const [subscription, setSubscription] = useState<SubscriptionTier | null>(null);
-  const [clientCount, setClientCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
-  const fetchSubscriptionData = async () => {
+const INITIAL_STATE: SubscriptionState = {
+  subscription: null,
+  clientCount: 0,
+  isLoading: true,
+  error: null
+};
+
+const FALLBACK_SUBSCRIPTION: SubscriptionTier = {
+  id: 'basic-fallback',
+  name: 'Basic',
+  price: 0,
+  billing_cycle: 'monthly',
+  description: 'Basic plan',
+  client_limit: 10,
+  yearly_price: null,
+  sale_price: null,
+  justification: null
+};
+
+// ============================================================================
+// CUSTOM HOOK
+// ============================================================================
+
+export function useSubscription(): SubscriptionData {
+  const [state, setState] = useState<SubscriptionState>(INITIAL_STATE);
+
+  const updateState = useCallback((updates: Partial<SubscriptionState>) => {
+    setState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const fetchSubscriptionData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      updateState({ isLoading: true, error: null });
       
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not found');
-      }
+      const [subscriptionData, clientCount] = await Promise.all([
+        TrainerAPI.getSubscription(),
+        TrainerAPI.getClientCount()
+      ]);
       
-      // Get trainer data with subscription tier ID
-      const { data: trainerData, error: trainerError } = await supabase
-        .from('trainers')
-        .select('subscription_tier_id')
-        .eq('user_id', user.id)
-        .single();
-        
-      if (trainerError) {
-        throw trainerError;
-      }
-      
-      if (!trainerData?.subscription_tier_id) {
-        throw new Error('No subscription found');
-      }
-      
-      // Get subscription tier details
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscription_tiers')
-        .select('*')
-        .eq('id', trainerData.subscription_tier_id)
-        .single();
-        
-      if (subscriptionError) {
-        throw subscriptionError;
-      }
-      
-      setSubscription(subscriptionData);
-      
-      // Count the trainer's clients
-      const { count, error: countError } = await supabase
-        .from('clients')
-        .select('*', { count: 'exact', head: true })
-        .eq('trainer_id', user.id);
-        
-      if (countError) {
-        console.error('Error counting clients:', countError);
-      } else {
-        setClientCount(count || 0);
-      }
+      updateState({
+        subscription: subscriptionData || FALLBACK_SUBSCRIPTION,
+        clientCount,
+        isLoading: false
+      });
       
     } catch (error: any) {
       console.error('Error fetching subscription data:', error);
-      setError(error);
-    } finally {
-      setIsLoading(false);
+      
+      updateState({
+        subscription: FALLBACK_SUBSCRIPTION,
+        clientCount: 0,
+        error,
+        isLoading: false
+      });
     }
-  };
+  }, [updateState]);
 
   useEffect(() => {
     fetchSubscriptionData();
-  }, []);
+  }, [fetchSubscriptionData]);
 
-  // Calculate usage percentage
-  const clientLimit = subscription?.client_limit || null;
+  // Computed values
+  const clientLimit = state.subscription?.client_limit || null;
   const usagePercentage = clientLimit 
-    ? Math.min(Math.round((clientCount / clientLimit) * 100), 100) 
+    ? Math.min(Math.round((state.clientCount / clientLimit) * 100), 100) 
     : 0;
 
   return {
-    subscription,
-    clientCount,
+    ...state,
     clientLimit,
     usagePercentage,
-    isLoading,
-    error,
     refetch: fetchSubscriptionData
   };
 }
 
-/**
- * Helper function to format price for display
- */
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 export function formatPrice(price: number | null, billingCycle?: string): string {
   if (price === null || price === 0) return 'Free';
   
   const formattedPrice = `${price.toLocaleString()} CZK`;
   
-  if (!billingCycle) return formattedPrice;
+  const cycleMap: Record<string, string> = {
+    monthly: '/month',
+    yearly: '/year',
+    custom: ''
+  };
   
-  switch (billingCycle) {
-    case 'monthly':
-      return `${formattedPrice}/month`;
-    case 'yearly':
-      return `${formattedPrice}/year`;
-    case 'custom':
-      return formattedPrice;
-    default:
-      return formattedPrice;
+  const suffix = billingCycle ? cycleMap[billingCycle] || '' : '';
+  return `${formattedPrice}${suffix}`;
+}
+
+export function calculateUsageStatus(usagePercentage: number): {
+  color: string;
+  status: 'safe' | 'warning' | 'danger';
+  message?: string;
+} {
+  if (usagePercentage >= 90) {
+    return {
+      color: 'bg-red-500',
+      status: 'danger',
+      message: 'Client limit almost reached'
+    };
   }
+  
+  if (usagePercentage >= 75) {
+    return {
+      color: 'bg-yellow-500',
+      status: 'warning',
+      message: 'Consider upgrading soon'
+    };
+  }
+  
+  return {
+    color: 'bg-green-500',
+    status: 'safe'
+  };
 }

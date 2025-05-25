@@ -1,4 +1,4 @@
-// src/pages/trainer/pages/TrainerMenus.tsx - Complete Rewrite
+// src/pages/trainer/pages/TrainerMenus.tsx - Refactored with cleaner code
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/organisms/DashboardLayout';
 import { Button } from '@/components/atoms/Button';
@@ -21,10 +21,13 @@ import { TrainerAPI, Menu, MenuPlan, CreateMenuData, CreateMenuPlanData } from '
 import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
 
-// ============================================================================
-// FORM SCHEMAS & TYPES
-// ============================================================================
+// Constants
+const MEAL_TYPES = [
+  'Breakfast', 'Morning Snack', 'Lunch', 
+  'Afternoon Snack', 'Dinner', 'Evening Snack'
+];
 
+// Schemas
 const createMealSchema = z.object({
   meal_type: z.string().min(1, 'Meal type is required'),
   food_details: z.string().min(1, 'Food details are required'),
@@ -55,28 +58,8 @@ const createMenuPlanSchema = z.object({
 type CreateMealFormValues = z.infer<typeof createMealSchema>;
 type CreateMenuPlanFormValues = z.infer<typeof createMenuPlanSchema>;
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const MEAL_TYPES = [
-  'Breakfast',
-  'Morning Snack',
-  'Lunch', 
-  'Afternoon Snack',
-  'Dinner',
-  'Evening Snack'
-];
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
 export default function TrainerMenus() {
-  // ========================================================================
-  // STATE MANAGEMENT
-  // ========================================================================
-  
+  // State
   const [activeTab, setActiveTab] = useState<'meals' | 'plans'>('meals');
   const [meals, setMeals] = useState<Menu[]>([]);
   const [menuPlans, setMenuPlans] = useState<MenuPlan[]>([]);
@@ -85,35 +68,21 @@ export default function TrainerMenus() {
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // ========================================================================
-  // FORM SETUP
-  // ========================================================================
-  
+  // Forms
   const mealForm = useForm<CreateMealFormValues>({
     resolver: zodResolver(createMealSchema),
     defaultValues: {
-      meal_type: '',
-      food_details: '',
-      calories: '',
-      protein: '',
-      carbohydrates: '',
-      fat: '',
-      note: ''
+      meal_type: '', food_details: '', calories: '', protein: '', 
+      carbohydrates: '', fat: '', note: ''
     }
   });
 
   const planForm = useForm<CreateMenuPlanFormValues>({
     resolver: zodResolver(createMenuPlanSchema),
-    defaultValues: {
-      plan_name: '',
-      selected_meal_ids: []
-    }
+    defaultValues: { plan_name: '', selected_meal_ids: [] }
   });
 
-  // ========================================================================
-  // DATA FETCHING
-  // ========================================================================
-  
+  // Fetch data
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -134,14 +103,10 @@ export default function TrainerMenus() {
     fetchData();
   }, []);
 
-  // ========================================================================
-  // FORM HANDLERS
-  // ========================================================================
-  
+  // Handlers
   const handleCreateMeal = async (data: CreateMealFormValues) => {
     try {
       setSubmitting(true);
-      
       const menuData: CreateMenuData = {
         meal_type: data.meal_type,
         food_details: data.food_details,
@@ -153,14 +118,11 @@ export default function TrainerMenus() {
       };
       
       const newMeal = await TrainerAPI.createMenu(menuData);
-      
       if (newMeal) {
         setMeals(prev => [newMeal, ...prev]);
         showSuccessToast('Meal created successfully');
         mealForm.reset();
         setShowMealForm(false);
-      } else {
-        throw new Error('Failed to create meal');
       }
     } catch (error) {
       showErrorToast(error, 'Failed to create meal');
@@ -172,21 +134,17 @@ export default function TrainerMenus() {
   const handleCreateMenuPlan = async (data: CreateMenuPlanFormValues) => {
     try {
       setSubmitting(true);
-      
       const planData: CreateMenuPlanData = {
         plan_name: data.plan_name,
         selected_meal_ids: data.selected_meal_ids
       };
 
       const newPlan = await TrainerAPI.createMenuPlan(planData);
-      
       if (newPlan) {
         setMenuPlans(prev => [newPlan, ...prev]);
         showSuccessToast('Menu plan created successfully');
         planForm.reset();
         setShowPlanForm(false);
-      } else {
-        throw new Error('Failed to create menu plan');
       }
     } catch (error) {
       showErrorToast(error, 'Failed to create menu plan');
@@ -203,8 +161,6 @@ export default function TrainerMenus() {
       if (success) {
         setMeals(prev => prev.filter(meal => meal.id !== mealId));
         showSuccessToast('Meal deleted successfully');
-      } else {
-        throw new Error('Failed to delete meal');
       }
     } catch (error) {
       showErrorToast(error, 'Failed to delete meal');
@@ -219,18 +175,13 @@ export default function TrainerMenus() {
       if (success) {
         setMenuPlans(prev => prev.filter(plan => plan.id !== planId));
         showSuccessToast('Menu plan deleted successfully');
-      } else {
-        throw new Error('Failed to delete menu plan');
       }
     } catch (error) {
       showErrorToast(error, 'Failed to delete menu plan');
     }
   };
 
-  // ========================================================================
-  // UTILITY FUNCTIONS
-  // ========================================================================
-  
+  // Utility functions
   const formatNutrition = (meal: Menu) => {
     return `${meal.calories}kcal | P: ${meal.protein}g | C: ${meal.carbohydrates}g | F: ${meal.fat}g`;
   };
@@ -249,16 +200,11 @@ export default function TrainerMenus() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      month: 'short', day: 'numeric', year: 'numeric'
     });
   };
 
-  // ========================================================================
-  // RENDER COMPONENTS
-  // ========================================================================
-  
+  // Render functions
   const renderMealCard = (meal: Menu) => (
     <Card key={meal.id} className="hover:shadow-md transition-shadow duration-200">
       <CardContent className="p-4">
@@ -266,15 +212,12 @@ export default function TrainerMenus() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getMealTypeBadgeColor(meal.meal_type)}`}>
             {meal.meal_type}
           </span>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => handleDeleteMeal(meal.id)}
-              className="text-red-400 hover:text-red-600 transition-colors"
-              title="Delete meal"
-            >
-              <Icon name="x" size={16} />
-            </button>
-          </div>
+          <button 
+            onClick={() => handleDeleteMeal(meal.id)}
+            className="text-red-400 hover:text-red-600 transition-colors"
+          >
+            <Icon name="x" size={16} />
+          </button>
         </div>
         
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{meal.food_details}</h3>
@@ -289,9 +232,7 @@ export default function TrainerMenus() {
           </p>
         )}
         
-        <div className="text-xs text-gray-400">
-          Created {formatDate(meal.created_at)}
-        </div>
+        <div className="text-xs text-gray-400">Created {formatDate(meal.created_at)}</div>
       </CardContent>
     </Card>
   );
@@ -301,18 +242,14 @@ export default function TrainerMenus() {
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
           <h3 className="font-semibold text-gray-900 text-lg line-clamp-2">{plan.plan_name}</h3>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => handleDeleteMenuPlan(plan.id)}
-              className="text-red-400 hover:text-red-600 transition-colors"
-              title="Delete menu plan"
-            >
-              <Icon name="x" size={16} />
-            </button>
-          </div>
+          <button 
+            onClick={() => handleDeleteMenuPlan(plan.id)}
+            className="text-red-400 hover:text-red-600 transition-colors"
+          >
+            <Icon name="x" size={16} />
+          </button>
         </div>
         
-        {/* Nutrition Summary */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-100">
             <div className="text-lg font-bold text-[#007bff]">{plan.total_calories}</div>
@@ -324,12 +261,10 @@ export default function TrainerMenus() {
           </div>
         </div>
         
-        {/* Macros */}
         <div className="text-sm text-gray-600 mb-4 text-center p-2 bg-gray-50 rounded">
           <p>Protein: {plan.total_protein}g | Carbs: {plan.total_carbohydrates}g | Fat: {plan.total_fat}g</p>
         </div>
         
-        {/* Meals in this plan */}
         {plan.meals && plan.meals.length > 0 && (
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Meals in this plan:</h4>
@@ -343,37 +278,24 @@ export default function TrainerMenus() {
                     </span>
                     <span className="font-medium truncate">{meal.food_details}</span>
                   </div>
-                  <span className="text-xs text-gray-500 ml-2 font-medium">
-                    {meal.calories}kcal
-                  </span>
+                  <span className="text-xs text-gray-500 ml-2 font-medium">{meal.calories}kcal</span>
                 </div>
               ))}
             </div>
           </div>
         )}
         
-        {/* Actions */}
         <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-          <span className="text-xs text-gray-400">
-            Created {formatDate(plan.created_at)}
-          </span>
+          <span className="text-xs text-gray-400">Created {formatDate(plan.created_at)}</span>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
-              Edit Plan
-            </Button>
-            <Button variant="blue" size="sm">
-              Assign to Client
-            </Button>
+            <Button variant="outline" size="sm">Edit Plan</Button>
+            <Button variant="blue" size="sm">Assign to Client</Button>
           </div>
         </div>
       </CardContent>
     </Card>
   );
 
-  // ========================================================================
-  // MAIN RENDER
-  // ========================================================================
-  
   if (loading) {
     return (
       <DashboardLayout userType={USER_TYPES.TRAINER}>
@@ -395,21 +317,13 @@ export default function TrainerMenus() {
           </div>
           <div className="flex space-x-3">
             {activeTab === 'meals' && (
-              <Button 
-                variant="blue" 
-                onClick={() => setShowMealForm(true)}
-                disabled={showMealForm}
-              >
+              <Button variant="blue" onClick={() => setShowMealForm(true)} disabled={showMealForm}>
                 <Icon name="dumbbell" size={16} className="mr-2" />
                 Create Meal
               </Button>
             )}
             {activeTab === 'plans' && (
-              <Button 
-                variant="blue" 
-                onClick={() => setShowPlanForm(true)}
-                disabled={showPlanForm || meals.length === 0}
-              >
+              <Button variant="blue" onClick={() => setShowPlanForm(true)} disabled={showPlanForm || meals.length === 0}>
                 <Icon name="calendar" size={16} className="mr-2" />
                 Create Menu Plan
               </Button>
@@ -423,9 +337,7 @@ export default function TrainerMenus() {
             <button
               onClick={() => setActiveTab('meals')}
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'meals'
-                  ? 'border-[#007bff] text-[#007bff]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === 'meals' ? 'border-[#007bff] text-[#007bff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               Individual Meals ({meals.length})
@@ -433,9 +345,7 @@ export default function TrainerMenus() {
             <button
               onClick={() => setActiveTab('plans')}
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'plans'
-                  ? 'border-[#007bff] text-[#007bff]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === 'plans' ? 'border-[#007bff] text-[#007bff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               Menu Plans ({menuPlans.length})
@@ -443,144 +353,82 @@ export default function TrainerMenus() {
           </nav>
         </div>
 
-        {/* MEALS TAB */}
+        {/* Meals Tab */}
         {activeTab === 'meals' && (
           <div className="space-y-6">
-            {/* Create Meal Form */}
+            {/* Meal Form */}
             {showMealForm && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Create New Meal</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Create New Meal</CardTitle></CardHeader>
                 <CardContent>
                   <Form {...mealForm}>
                     <form onSubmit={mealForm.handleSubmit(handleCreateMeal)} className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={mealForm.control}
-                          name="meal_type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Meal Type</FormLabel>
-                              <FormControl>
-                                <select 
-                                  {...field}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                  <option value="">Select meal type</option>
-                                  {MEAL_TYPES.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                  ))}
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={mealForm.control}
-                          name="food_details"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Food Details</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g., Grilled Chicken with Rice" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <FormField
-                          control={mealForm.control}
-                          name="calories"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Calories</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="350" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={mealForm.control}
-                          name="protein"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Protein (g)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="25" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={mealForm.control}
-                          name="carbohydrates"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Carbs (g)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="45" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={mealForm.control}
-                          name="fat"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Fat (g)</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" placeholder="12" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={mealForm.control}
-                        name="note"
-                        render={({ field }) => (
+                        <FormField control={mealForm.control} name="meal_type" render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes (optional)</FormLabel>
+                            <FormLabel>Meal Type</FormLabel>
                             <FormControl>
-                              <textarea 
-                                {...field}
-                                className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                placeholder="Any additional notes about this meal..."
-                              />
+                              <select {...field} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                                <option value="">Select meal type</option>
+                                {MEAL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                              </select>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
-                        )}
-                      />
+                        )} />
+                        <FormField control={mealForm.control} name="food_details" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Food Details</FormLabel>
+                            <FormControl><Input {...field} placeholder="e.g., Grilled Chicken with Rice" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <FormField control={mealForm.control} name="calories" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Calories</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="350" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={mealForm.control} name="protein" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Protein (g)</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="25" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={mealForm.control} name="carbohydrates" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Carbs (g)</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="45" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={mealForm.control} name="fat" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fat (g)</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="12" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+
+                      <FormField control={mealForm.control} name="note" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes (optional)</FormLabel>
+                          <FormControl>
+                            <textarea {...field} className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" placeholder="Any additional notes about this meal..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
 
                       <div className="flex justify-end space-x-3">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setShowMealForm(false)}
-                          disabled={submitting}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          type="submit" 
-                          variant="blue" 
-                          isLoading={submitting}
-                        >
-                          Create Meal
-                        </Button>
+                        <Button type="button" variant="outline" onClick={() => setShowMealForm(false)} disabled={submitting}>Cancel</Button>
+                        <Button type="submit" variant="blue" isLoading={submitting}>Create Meal</Button>
                       </div>
                     </form>
                   </Form>
@@ -596,12 +444,9 @@ export default function TrainerMenus() {
                     <Icon name="dumbbell" size={24} className="text-gray-400" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Meals Created</h3>
-                  <p className="text-gray-600 mb-6">
-                    Start by creating individual meals that you can later organize into plans.
-                  </p>
+                  <p className="text-gray-600 mb-6">Start by creating individual meals that you can later organize into plans.</p>
                   <Button variant="blue" onClick={() => setShowMealForm(true)}>
-                    <Icon name="dumbbell" size={16} className="mr-2" />
-                    Create Your First Meal
+                    <Icon name="dumbbell" size={16} className="mr-2" />Create Your First Meal
                   </Button>
                 </CardContent>
               </Card>
@@ -613,49 +458,34 @@ export default function TrainerMenus() {
           </div>
         )}
 
-        {/* MENU PLANS TAB */}
+        {/* Menu Plans Tab */}
         {activeTab === 'plans' && (
           <div className="space-y-6">
-            {/* Create Menu Plan Form */}
+            {/* Menu Plan Form */}
             {showPlanForm && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Create New Menu Plan</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Create New Menu Plan</CardTitle></CardHeader>
                 <CardContent>
                   <Form {...planForm}>
                     <form onSubmit={planForm.handleSubmit(handleCreateMenuPlan)} className="space-y-4">
-                      <FormField
-                        control={planForm.control}
-                        name="plan_name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Plan Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="e.g., Muscle Building Day 1" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <FormField control={planForm.control} name="plan_name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Plan Name</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g., Muscle Building Day 1" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
 
                       <div>
                         <label className="text-sm font-medium">Select Meals</label>
                         <div className="mt-2 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
                           {meals.length === 0 ? (
-                            <p className="text-gray-500 text-center py-4">
-                              No meals available. Create some meals first.
-                            </p>
+                            <p className="text-gray-500 text-center py-4">No meals available. Create some meals first.</p>
                           ) : (
                             <div className="space-y-2">
                               {meals.map((meal) => (
                                 <label key={meal.id} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    value={meal.id}
-                                    {...planForm.register('selected_meal_ids')}
-                                    className="mt-1"
-                                  />
+                                  <input type="checkbox" value={meal.id} {...planForm.register('selected_meal_ids')} className="mt-1" />
                                   <div className="flex-1">
                                     <div className="flex items-center space-x-2 mb-1">
                                       <span className={`px-2 py-0.5 rounded text-xs border ${getMealTypeBadgeColor(meal.meal_type)}`}>
@@ -671,29 +501,13 @@ export default function TrainerMenus() {
                           )}
                         </div>
                         {planForm.formState.errors.selected_meal_ids && (
-                          <p className="text-sm font-medium text-destructive mt-2">
-                            {planForm.formState.errors.selected_meal_ids.message}
-                          </p>
+                          <p className="text-sm font-medium text-destructive mt-2">{planForm.formState.errors.selected_meal_ids.message}</p>
                         )}
                       </div>
 
                       <div className="flex justify-end space-x-3">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setShowPlanForm(false)}
-                          disabled={submitting}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          type="submit" 
-                          variant="blue" 
-                          isLoading={submitting}
-                          disabled={meals.length === 0}
-                        >
-                          Create Menu Plan
-                        </Button>
+                        <Button type="button" variant="outline" onClick={() => setShowPlanForm(false)} disabled={submitting}>Cancel</Button>
+                        <Button type="submit" variant="blue" isLoading={submitting} disabled={meals.length === 0}>Create Menu Plan</Button>
                       </div>
                     </form>
                   </Form>
@@ -710,19 +524,13 @@ export default function TrainerMenus() {
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Menu Plans Created</h3>
                   <p className="text-gray-600 mb-6">
-                    {meals.length === 0 
-                      ? "Create some individual meals first, then organize them into plans."
-                      : "Organize your meals into comprehensive meal plans for your clients."
-                    }
+                    {meals.length === 0 ? "Create some individual meals first, then organize them into plans." : "Organize your meals into comprehensive meal plans for your clients."}
                   </p>
                   {meals.length === 0 ? (
-                    <Button variant="outline" onClick={() => setActiveTab('meals')}>
-                      Create Meals First
-                    </Button>
+                    <Button variant="outline" onClick={() => setActiveTab('meals')}>Create Meals First</Button>
                   ) : (
                     <Button variant="blue" onClick={() => setShowPlanForm(true)}>
-                      <Icon name="calendar" size={16} className="mr-2" />
-                      Create Your First Plan
+                      <Icon name="calendar" size={16} className="mr-2" />Create Your First Plan
                     </Button>
                   )}
                 </CardContent>

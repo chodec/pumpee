@@ -1,71 +1,122 @@
-// src/lib/types.ts
-import { Session, User } from '@supabase/supabase-js';
-
-export type UserType = 'client' | 'trainer';
-
-// User profile data structure
-export interface UserProfile {
+// src/lib/api/types.ts - All type definitions
+export interface ClientProgress {
   id: string;
-  email: string;
-  full_name: string;
-  user_type?: UserType;
-  registration_method?: string;
+  client_id: string;
+  date: string;
+  body_weight: number | null;
+  chest_size: number | null;
+  waist_size: number | null;
+  biceps_size: number | null;
+  thigh_size: number | null;
+  notes?: string | null;
   created_at?: string;
+  updated_at?: string;
 }
 
-// Client-specific profile data
-export interface ClientProfile extends UserProfile {
-  user_type: 'client';
-  trainer_id?: string;
-  metrics?: Record<string, any>;
-}
-
-// Trainer-specific profile data
-export interface TrainerProfile extends UserProfile {
-  user_type: 'trainer';
-  subscription_tier_id: string;
-  bio?: string;
-  specialties?: string[];
-}
-
-// Subscription data structure
-export interface SubscriptionTier {
+export interface Exercise {
   id: string;
-  name: string;
-  price: number | null;
-  billing_cycle: string;
-  description: string | null;
-  client_limit: number | null;
-  yearly_price: number | null;
-  sale_price: number | null;
-  justification: string | null;
+  trainer_id: string;
+  exercise_name: string;
+  series: string;
+  series_description: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// Auth-related data and functions
-export interface AuthData {
-  session: Session | null;
-  user: User | null;
-  isLoading: boolean;
-  error: Error | null;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, userData: { fullName: string }) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-  getUserType: () => Promise<UserType | null>;
-  getUserProfile: () => Promise<UserProfile | null>;
+export interface Workout {
+  id: string;
+  trainer_id: string;
+  workout_name: string;
+  workout_day: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  exercises?: Exercise[];
+  exercise_count?: number;
 }
 
-// Registration form values
-export interface RegistrationFormValues {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
+export interface WorkoutExercise {
+  id: string;
+  workout_id: string;
+  exercise_id: string;
+  exercise_order: number;
+  notes?: string;
+  exercise?: Exercise;
 }
 
-// Login form values
-export interface LoginFormValues {
-  email: string;
-  password: string;
+export interface ClientWorkout {
+  id: string;
+  client_id: string;
+  workout_id: string;
+  assigned_date: string;
+  status: 'assigned' | 'in_progress' | 'completed';
+  trainer_notes?: string;
+  created_at: string;
+  updated_at: string;
+  workout?: Workout;
+}
+
+export interface Menu {
+  id: string;
+  trainer_id: string;
+  meal_type: string;
+  food_details: string;
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fat: number;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MenuPlanItem {
+  id: string;
+  menu_plan_id: string;
+  menu_id: string;
+  meal_order: number;
+  menu?: Menu;
+}
+
+export interface MenuPlan {
+  id: string;
+  trainer_id: string;
+  plan_name: string;
+  total_calories: number;
+  total_protein: number;
+  total_carbohydrates: number;
+  total_fat: number;
+  created_at: string;
+  updated_at: string;
+  menu_plan_items?: MenuPlanItem[];
+  meals?: Menu[];
+  meal_count?: number;
+}
+
+export interface CreateExerciseData {
+  exercise_name: string;
+  series: string;
+  series_description: string;
+}
+
+export interface CreateWorkoutData {
+  workout_name: string;
+  workout_day: string;
+  description?: string;
+  selected_exercise_ids: string[];
+}
+
+export interface CreateMenuData {
+  meal_type: string;
+  food_details: string;
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fat: number;
+  note?: string;
+}
+
+export interface CreateMenuPlanData {
+  plan_name: string;
+  selected_meal_ids: string[];
 }
