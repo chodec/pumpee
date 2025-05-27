@@ -1,4 +1,4 @@
-// src/components/features/client/ProgressGraph.tsx - Refactored Version
+// src/components/features/client/ProgressGraph.tsx - Cleaned and refactored
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/organisms/Card';
 import { Button } from '@/components/atoms/Button';
@@ -32,7 +32,7 @@ interface ChartDataPoint {
   chest?: number | null;
   arms?: number | null;
   legs?: number | null;
-  value?: number; // For single measurement charts
+  value?: number;
 }
 
 interface MeasurementConfig {
@@ -220,26 +220,21 @@ interface ControlsProps {
 }
 
 const Controls: React.FC<ControlsProps> = ({
-  selectedType,
   timeRange,
-  onTypeChange,
   onTimeRangeChange
 }) => (
-  <>
-    {/* Time Range Controls */}
-    <div className="flex space-x-2">
-      {TIME_RANGE_OPTIONS.map((option) => (
-        <Button 
-          key={option.value}
-          variant={timeRange === option.value ? 'blue' : 'outline'} 
-          size="sm"
-          onClick={() => onTimeRangeChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  </>
+  <div className="flex space-x-2">
+    {TIME_RANGE_OPTIONS.map((option) => (
+      <Button 
+        key={option.value}
+        variant={timeRange === option.value ? 'blue' : 'outline'} 
+        size="sm"
+        onClick={() => onTimeRangeChange(option.value)}
+      >
+        {option.label}
+      </Button>
+    ))}
+  </div>
 );
 
 interface MeasurementFiltersProps {
@@ -278,11 +273,7 @@ interface EmptyStateProps {
   icon?: React.ReactNode;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ 
-  title, 
-  description, 
-  icon 
-}) => (
+const EmptyState: React.FC<EmptyStateProps> = ({ title, description, icon }) => (
   <div className="flex flex-col items-center justify-center h-64 text-center">
     <div className="text-gray-400 mb-2">
       {icon || (
@@ -514,7 +505,6 @@ const useProgressGraph = (refreshTrigger?: number) => {
     }
   }, [updateState]);
 
-  // Fetch data on mount and when refreshTrigger changes
   useEffect(() => {
     fetchMeasurements();
   }, [fetchMeasurements, refreshTrigger]);
@@ -541,7 +531,6 @@ export const ProgressGraph: React.FC<ProgressGraphProps> = ({ refreshTrigger }) 
     updateState
   } = useProgressGraph(refreshTrigger);
 
-  // Generate chart data based on current selections
   const chartData = useMemo(() => {
     if (selectedType === 'all') {
       return createAllMeasurementsChartData(measurements, timeRange);

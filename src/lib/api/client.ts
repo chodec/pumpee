@@ -1,17 +1,12 @@
-// src/lib/api/client.ts - Debug version with console logs
+// src/lib/api/client.ts - Cleaned version with minimal debug
 import { supabase } from '@/lib/supabaseClient';
 import { ClientProgress } from '../types';
 
 export const ClientAPI = {
   getClientProfile: async (): Promise<any | null> => {
     try {
-      console.log('🔍 ClientAPI.getClientProfile - Starting...');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('❌ No authenticated user found');
-        return null;
-      }
-      console.log('✅ User found:', user.id);
+      if (!user) return null;
       
       const { data, error } = await supabase
         .from('clients')
@@ -19,28 +14,18 @@ export const ClientAPI = {
         .eq('user_id', user.id)
         .single();
         
-      if (error) {
-        console.log('❌ Error fetching client profile:', error);
-        throw error;
-      }
-      console.log('✅ Client profile fetched:', data);
+      if (error) throw error;
       return data;
     } catch (error) {
-      console.error('❌ Error fetching client profile:', error);
+      console.error('Error fetching client profile:', error);
       return null;
     }
   },
 
   getClientMeasurements: async (limit = 10): Promise<ClientProgress[]> => {
     try {
-      console.log('🔍 ClientAPI.getClientMeasurements - Starting with limit:', limit);
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("❌ No authenticated user found");
-        return [];
-      }
-      console.log('✅ User found:', user.id);
+      if (!user) return [];
       
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
@@ -49,27 +34,20 @@ export const ClientAPI = {
         .single();
         
       if (clientError) {
-        console.log('⚠️ Client not found, error:', clientError);
         if (clientError.code === 'PGRST116') {
-          console.log('📝 Creating new client record...');
+          // Client doesn't exist, create one
           const { data: newClient, error: createError } = await supabase
             .from('clients')
             .insert({ user_id: user.id })
             .select()
             .single();
             
-          if (createError) {
-            console.error('❌ Error creating client:', createError);
-            throw createError;
-          }
-          console.log('✅ New client created:', newClient);
+          if (createError) throw createError;
           return [];
         } else {
           throw clientError;
         }
       }
-      
-      console.log('✅ Client found:', clientData);
       
       const { data, error } = await supabase
         .from('client_progress')
@@ -90,31 +68,19 @@ export const ClientAPI = {
         .order('date', { ascending: false })
         .limit(limit);
         
-      if (error) {
-        console.error('❌ Error fetching measurements:', error);
-        throw error;
-      }
-      
-      console.log('✅ Measurements fetched:', data);
-      console.log('📊 Number of measurements:', data?.length || 0);
+      if (error) throw error;
       
       return data || [];
     } catch (error) {
-      console.error('❌ Error in getClientMeasurements:', error);
+      console.error('Error fetching client measurements:', error);
       return [];
     }
   },
 
   addMeasurement: async (measurementData: any): Promise<boolean> => {
     try {
-      console.log('🔍 ClientAPI.addMeasurement - Starting with data:', measurementData);
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("❌ No authenticated user found");
-        return false;
-      }
-      console.log('✅ User found:', user.id);
+      if (!user) return false;
       
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
@@ -126,25 +92,19 @@ export const ClientAPI = {
       
       if (clientError) {
         if (clientError.code === 'PGRST116') {
-          console.log('📝 Creating new client record...');
+          // Create client if doesn't exist
           const { data: newClient, error: createError } = await supabase
             .from('clients')
             .insert({ user_id: user.id })
             .select()
             .single();
             
-          if (createError) {
-            console.error('❌ Error creating client:', createError);
-            throw createError;
-          }
-          console.log('✅ New client created:', newClient);
+          if (createError) throw createError;
           clientId = newClient.id;
         } else {
-          console.error('❌ Client error:', clientError);
           throw clientError;
         }
       } else {
-        console.log('✅ Client found:', clientData);
         clientId = clientData.id;
       }
       
@@ -159,41 +119,30 @@ export const ClientAPI = {
         notes: measurementData.notes || null
       };
       
-      console.log('📝 Measurement to insert:', measurementToInsert);
-      
       const { error } = await supabase
         .from('client_progress')
         .insert(measurementToInsert);
         
-      if (error) {
-        console.error('❌ Error inserting measurement:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('✅ Measurement added successfully');
       return true;
     } catch (error) {
-      console.error('❌ Error adding measurement:', error);
+      console.error('Error adding measurement:', error);
       return false;
     }
   },
 
   getClientStats: async (): Promise<any> => {
     try {
-      console.log('🔍 ClientAPI.getClientStats - Starting...');
-      
       const measurements = await ClientAPI.getClientMeasurements(10);
       
       if (!measurements || measurements.length === 0) {
-        console.log('📊 No measurements found, returning default stats');
         return {
           currentWeight: { value: 0, change: 0, unit: 'kg' },
           bodyFat: { value: 0, change: 0, unit: '%' },
           muscleGain: { value: 0, change: 0, unit: 'kg' }
         };
       }
-      
-      console.log('📊 Calculating stats from measurements:', measurements.length);
       
       const latest = measurements[0]; 
       const oldest = measurements.length > 1 ? measurements[measurements.length - 1] : null;
@@ -215,16 +164,13 @@ export const ClientAPI = {
       
       const muscleGain = estimateMuscleGain(latest, oldest);
       
-      const stats = {
+      return {
         currentWeight,
         bodyFat,
         muscleGain
       };
-      
-      console.log('✅ Stats calculated:', stats);
-      return stats;
     } catch (error) {
-      console.error('❌ Error calculating client stats:', error);
+      console.error('Error calculating client stats:', error);
       return {
         currentWeight: { value: 0, change: 0, unit: 'kg' },
         bodyFat: { value: 0, change: 0, unit: '%' },
@@ -235,13 +181,8 @@ export const ClientAPI = {
 
   getAssignedTrainer: async (): Promise<any | null> => {
     try {
-      console.log('🔍 ClientAPI.getAssignedTrainer - Starting...');
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('❌ No user found');
-        return null;
-      }
+      if (!user) return null;
       
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
@@ -249,10 +190,7 @@ export const ClientAPI = {
         .eq('user_id', user.id)
         .single();
         
-      if (clientError) {
-        console.log('❌ Client not found:', clientError);
-        return null;
-      }
+      if (clientError) return null;
       
       const { data: relationData, error: relationError } = await supabase
         .from('client_trainers')
@@ -271,12 +209,7 @@ export const ClientAPI = {
         .eq('status', 'active')
         .single();
       
-      if (relationError) {
-        console.log('❌ No trainer relationship found:', relationError);
-        return null;
-      }
-      
-      console.log('✅ Trainer found:', relationData);
+      if (relationError) return null;
       
       return {
         id: relationData.trainer.id,
@@ -287,13 +220,16 @@ export const ClientAPI = {
         start_date: relationData.subscription_start
       };
     } catch (error) {
-      console.error('❌ Error fetching assigned trainer:', error);
+      console.error('Error fetching assigned trainer:', error);
       return null;
     }
   }
 };
 
-// Helper functions
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 function estimateBodyFat(measurement: ClientProgress): number {
   if (!measurement) return 0;
   

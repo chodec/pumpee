@@ -1,5 +1,5 @@
-// src/components/features/client/MeasurementTracker.tsx - Debug version with logs
-import React, { useState, useCallback, useMemo } from 'react';
+// src/components/features/client/MeasurementTracker.tsx - Cleaned and refactored
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Input } from '@/components/atoms/Input';
 import Icon from '@/components/atoms/Icon';
@@ -75,53 +75,78 @@ export interface MeasurementTrackerProps {
 }
 
 // ============================================================================
-// MAIN COMPONENT
+// UTILITY FUNCTIONS
 // ============================================================================
 
-const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
-  measurements = [],
-  onAddMeasurement,
-  isLoading = false
-}) => {
-  console.log('🔍 MeasurementTracker render:', {
-    measurementsLength: measurements.length,
-    measurements: measurements,
-    isLoading,
-    onAddMeasurement: typeof onAddMeasurement
-  });
+const formatDate = (dateString: string): string => {
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (e) {
+    console.error("Invalid date format:", dateString);
+    return dateString;
+  }
+};
 
-  const [showForm, setShowForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+// ============================================================================
+// COMPONENT PARTS
+// ============================================================================
 
-  const formatDate = (dateString: string): string => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } catch (e) {
-      console.error("Invalid date format:", dateString);
-      return dateString;
-    }
-  };
+const LoadingState: React.FC = () => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between">
+      <CardTitle>Body Measurements</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="flex justify-center items-center min-h-[200px]">
+        <LoadingSpinner size="md" />
+        <p className="ml-3 text-gray-500">Loading measurements...</p>
+      </div>
+    </CardContent>
+  </Card>
+);
 
-  const handleSubmit = useCallback(async (data: MeasurementFormValues) => {
-    console.log('📝 Form submission data:', data);
-    try {
-      setIsSubmitting(true);
-      await onAddMeasurement(data);
-      setShowForm(false);
-      showSuccessToast('Measurement added successfully');
-    } catch (error) {
-      console.error('❌ Form submission error:', error);
-      showErrorToast(error, 'Failed to add measurement');
-      throw error;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [onAddMeasurement]);
+interface EmptyStateProps {
+  onCreateFirst: () => void;
+}
 
+const EmptyState: React.FC<EmptyStateProps> = ({ onCreateFirst }) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between">
+      <CardTitle>Body Measurements</CardTitle>
+      <Button variant="blue" size="sm" onClick={onCreateFirst}>
+        Add Measurement
+      </Button>
+    </CardHeader>
+    <CardContent>
+      <div className="text-center py-8">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-gray-500">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-800 mb-2">No Measurements</h3>
+        <p className="text-gray-600 mb-6">
+          Start tracking your body measurements to see your progress over time.
+        </p>
+        <Button variant="blue" size="sm" onClick={onCreateFirst}>
+          Add Your First Measurement
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+interface MeasurementFormProps {
+  onSubmit: (data: MeasurementFormValues) => Promise<void>;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}
+
+const MeasurementForm: React.FC<MeasurementFormProps> = ({ onSubmit, onCancel, isSubmitting }) => {
   const form = useForm<MeasurementFormValues>({
     resolver: zodResolver(measurementSchema),
     defaultValues: {
@@ -135,223 +160,158 @@ const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
     }
   });
 
-  if (isLoading) {
-    console.log('⏳ Showing loading state');
-    return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Body Measurements</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center min-h-[200px]">
-            <LoadingSpinner size="md" />
-            <p className="ml-3 text-gray-500">Loading measurements...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (showForm) {
-    console.log('📋 Showing form');
-    return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Body Measurements</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowForm(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New Measurement</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="body_weight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Weight (kg)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="chest_size"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Chest (cm)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="waist_size"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Waist (cm)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="biceps_size"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Arms (cm)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="thigh_size"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Legs (cm)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes (optional)</FormLabel>
-                        <FormControl>
-                          <textarea 
-                            {...field}
-                            className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder="Optional notes about your measurements"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="flex justify-end space-x-3">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setShowForm(false)}
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      variant="blue" 
-                      isLoading={isSubmitting}
-                      className="min-w-[120px]"
-                    >
-                      Save Measurements
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (measurements.length === 0) {
-    console.log('📭 Showing empty state');
-    return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Body Measurements</CardTitle>
-          <Button 
-            variant="blue" 
-            size="sm"
-            onClick={() => setShowForm(true)}
-          >
-            Add Measurement
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-gray-500">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Add New Measurement</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="date" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="body_weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (kg)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="chest_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Chest (cm)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="waist_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Waist (cm)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="biceps_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Arms (cm)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="thigh_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Legs (cm)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.1" min="0" placeholder="0.0" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <h3 className="text-lg font-medium text-gray-800 mb-2">No Measurements</h3>
-            <p className="text-gray-600 mb-6">
-              Start tracking your body measurements to see your progress over time.
-            </p>
-            <Button variant="blue" size="sm" onClick={() => setShowForm(true)}>
-              Add Your First Measurement
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+            
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes (optional)</FormLabel>
+                  <FormControl>
+                    <textarea 
+                      {...field}
+                      className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="Optional notes about your measurements"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="flex justify-end space-x-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                variant="blue" 
+                isLoading={isSubmitting}
+                className="min-w-[120px]"
+              >
+                Save Measurements
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+};
 
-  console.log('📊 Showing measurements list');
+interface MeasurementListProps {
+  measurements: ClientProgress[];
+  onAddNew: () => void;
+}
+
+const MeasurementList: React.FC<MeasurementListProps> = ({ measurements, onAddNew }) => {
+  const displayMeasurements = measurements.slice(0, 5);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Body Measurements</CardTitle>
-        <Button 
-          variant="blue" 
-          size="sm"
-          onClick={() => setShowForm(true)}
-        >
+        <Button variant="blue" size="sm" onClick={onAddNew}>
           Add Measurement
         </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {measurements.slice(0, 5).map((measurement) => {
+          {displayMeasurements.map((measurement) => {
             const displays = [];
             if (measurement.body_weight) displays.push(`Weight: ${measurement.body_weight}kg`);
             if (measurement.chest_size) displays.push(`Chest: ${measurement.chest_size}cm`);
@@ -367,7 +327,7 @@ const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                   </div>
                   <div>
                     <p className="font-medium">
-                      {formatDate(measurement.date)} Measurements
+                      {formatDate(measurement.date)} 
                     </p>
                     <p className="text-xs text-gray-500">
                       {displays.join(', ')}
@@ -378,11 +338,6 @@ const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
                       </p>
                     )}
                   </div>
-                </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {displays.length} measurement{displays.length !== 1 ? 's' : ''}
-                  </span>
                 </div>
               </div>
             );
@@ -397,6 +352,66 @@ const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
       </CardContent>
     </Card>
   );
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+const MeasurementTracker: React.FC<MeasurementTrackerProps> = ({
+  measurements = [],
+  onAddMeasurement,
+  isLoading = false
+}) => {
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = useCallback(async (data: MeasurementFormValues) => {
+    try {
+      setIsSubmitting(true);
+      await onAddMeasurement(data);
+      setShowForm(false);
+      showSuccessToast('Measurement added successfully');
+    } catch (error) {
+      console.error('Form submission error:', error);
+      showErrorToast(error, 'Failed to add measurement');
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [onAddMeasurement]);
+
+  const handleCancel = useCallback(() => {
+    setShowForm(false);
+  }, []);
+
+  const handleShowForm = useCallback(() => {
+    setShowForm(true);
+  }, []);
+
+  // Loading state
+  if (isLoading) {
+    return <LoadingState />;
+  }
+
+  // Form state
+  if (showForm) {
+    return (
+      <MeasurementForm 
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={isSubmitting}
+      />
+    );
+  }
+
+  // Empty state
+  if (measurements.length === 0) {
+    return <EmptyState onCreateFirst={handleShowForm} />;
+  }
+
+  // List state
+  return <MeasurementList measurements={measurements} onAddNew={handleShowForm} />;
 };
 
 export default MeasurementTracker;
