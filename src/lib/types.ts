@@ -175,3 +175,23 @@ export interface SubscriptionTier {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface TrainerSubscriptionTier {
+  id: string;
+  trainer_id: string;
+  name: string;
+  description: string;
+  price: number;
+  yearly_price?: number | null;
+  billing_cycle: 'monthly' | 'yearly';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTrainerSubscriptionData {
+  name: string;
+  description: string;
+  price: number;
+  yearly_price?: number | null;
+  billing_cycle: 'monthly' | 'yearly';
+}

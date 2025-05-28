@@ -12,6 +12,27 @@ import {
   CreateMenuPlanData 
 } from '../types';
 
+// Additional types for trainer subscription tiers
+export interface TrainerSubscriptionTier {
+  id: string;
+  trainer_id: string;
+  name: string;
+  description: string;
+  price: number;
+  yearly_price?: number | null;
+  billing_cycle: 'monthly' | 'yearly';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTrainerSubscriptionData {
+  name: string;
+  description: string;
+  price: number;
+  yearly_price?: number | null;
+  billing_cycle: 'monthly' | 'yearly';
+}
+
 export const TrainerAPI = {
   getTrainerId: async (): Promise<string | null> => {
     try {
@@ -35,6 +56,7 @@ export const TrainerAPI = {
   getSubscription: async (): Promise<SubscriptionTier | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) return null;
       
       const { data: trainerData, error: trainerError } = await supabase
@@ -112,7 +134,168 @@ export const TrainerAPI = {
     }
   },
 
-  // Exercise functions
+  // ========================================================================
+  // TRAINER SUBSCRIPTION TIER FUNCTIONS (NEW)
+  // ========================================================================
+
+  // Get all subscription tiers created by the trainer
+  getTrainerSubscriptionTiers: async (): Promise<TrainerSubscriptionTier[]> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+
+      const { data, error } = await supabase
+        .from('trainer_subscription_tiers')
+        .select('*')
+        .eq('trainer_id', trainerId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as TrainerSubscriptionTier[];
+    } catch (error) {
+      console.error('Error fetching trainer subscription tiers:', error);
+      throw error;
+    }
+  },
+
+  // Create a new subscription tier
+  createTrainerSubscriptionTier: async (subscriptionData: CreateTrainerSubscriptionData): Promise<TrainerSubscriptionTier> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+
+      const { data, error } = await supabase
+        .from('trainer_subscription_tiers')
+        .insert({
+          trainer_id: trainerId,
+          name: subscriptionData.name,
+          description: subscriptionData.description,
+          price: subscriptionData.price,
+          yearly_price: subscriptionData.yearly_price,
+          billing_cycle: subscriptionData.billing_cycle
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as TrainerSubscriptionTier;
+    } catch (error) {
+      console.error('Error creating trainer subscription tier:', error);
+      throw error;
+    }
+  },
+
+  // Update an existing subscription tier
+  updateTrainerSubscriptionTier: async (tierId: string, subscriptionData: CreateTrainerSubscriptionData): Promise<TrainerSubscriptionTier> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+
+      // Verify the tier belongs to this trainer
+      const { data: existingTier, error: checkError } = await supabase
+        .from('trainer_subscription_tiers')
+        .select('trainer_id')
+        .eq('id', tierId)
+        .single();
+
+      if (checkError) throw checkError;
+      if (existingTier.trainer_id !== trainerId) {
+        throw new Error('Unauthorized: This subscription tier does not belong to you');
+      }
+
+      const { data, error } = await supabase
+        .from('trainer_subscription_tiers')
+        .update({
+          name: subscriptionData.name,
+          description: subscriptionData.description,
+          price: subscriptionData.price,
+          yearly_price: subscriptionData.yearly_price,
+          billing_cycle: subscriptionData.billing_cycle,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tierId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as TrainerSubscriptionTier;
+    } catch (error) {
+      console.error('Error updating trainer subscription tier:', error);
+      throw error;
+    }
+  },
+
+  // Delete a subscription tier
+  deleteTrainerSubscriptionTier: async (tierId: string): Promise<boolean> => {
+    try {
+      const trainerId = await TrainerAPI.getTrainerId();
+      if (!trainerId) throw new Error('Trainer not found');
+
+      // Verify the tier belongs to this trainer
+      const { data: existingTier, error: checkError } = await supabase
+        .from('trainer_subscription_tiers')
+        .select('trainer_id')
+        .eq('id', tierId)
+        .single();
+
+      if (checkError) throw checkError;
+      if (existingTier.trainer_id !== trainerId) {
+        throw new Error('Unauthorized: This subscription tier does not belong to you');
+      }
+
+      // Check if any clients are subscribed to this tier
+      const { data: clientSubscriptions, error: clientError } = await supabase
+        .from('client_trainers')
+        .select('id')
+        .eq('trainer_subscription_tier_id', tierId)
+        .eq('status', 'active');
+
+      if (clientError) throw clientError;
+      
+      if (clientSubscriptions && clientSubscriptions.length > 0) {
+        throw new Error('Cannot delete subscription tier: clients are currently subscribed to this plan');
+      }
+
+      const { error } = await supabase
+        .from('trainer_subscription_tiers')
+        .delete()
+        .eq('id', tierId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting trainer subscription tier:', error);
+      throw error;
+    }
+  },
+
+  // Get clients subscribed to a specific tier
+  getClientsForSubscriptionTier: async (tierId: string): Promise<any[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('client_trainers')
+        .select(`
+          *,
+          client:clients(
+            id,
+            user:users(full_name, email)
+          )
+        `)
+        .eq('trainer_subscription_tier_id', tierId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching clients for subscription tier:', error);
+      throw error;
+    }
+  },
+
+  // ========================================================================
+  // EXERCISE FUNCTIONS (EXISTING)
+  // ========================================================================
+  
   getExercises: async (): Promise<Exercise[]> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -171,7 +354,10 @@ export const TrainerAPI = {
     }
   },
 
-  // Workout functions
+  // ========================================================================
+  // WORKOUT FUNCTIONS (EXISTING)
+  // ========================================================================
+  
   getWorkouts: async (): Promise<Workout[]> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
@@ -274,7 +460,10 @@ export const TrainerAPI = {
     }
   },
 
-  // Menu functions
+  // ========================================================================
+  // MENU FUNCTIONS (EXISTING)
+  // ========================================================================
+
   getMenus: async (): Promise<Menu[]> => {
     try {
       const trainerId = await TrainerAPI.getTrainerId();
