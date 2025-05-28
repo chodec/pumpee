@@ -1,4 +1,4 @@
-// src/components/organisms/DashboardLayout.tsx
+// src/components/organisms/DashboardLayout.tsx - Updated with Subscription Plans navigation
 import React, { ReactNode, useState, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
@@ -54,8 +54,9 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
         { name: 'Dashboard', path: DASHBOARD_ROUTES.TRAINER.DASHBOARD, icon: 'home' },
         { name: 'My Profile', path: DASHBOARD_ROUTES.TRAINER.PROFILE, icon: 'user' },
         { name: 'My Clients', path: DASHBOARD_ROUTES.TRAINER.CLIENTS, icon: 'users' },
-        { name: 'Workouts', path: DASHBOARD_ROUTES.TRAINER.WORKOUTS, icon: 'dumbbell' },
-        { name: 'Schedule', path: DASHBOARD_ROUTES.TRAINER.SCHEDULE, icon: 'calendar' },
+        { name: 'Workouts', path: '/trainer/workouts', icon: 'dumbbell' },
+        { name: 'Menus', path: '/trainer/menus', icon: 'calendar' },
+        { name: 'My Plans', path: '/trainer/subscription-plans', icon: 'credit-card' },
         { name: 'Subscriptions', path: DASHBOARD_ROUTES.TRAINER.SUBSCRIPTIONS, icon: 'credit-card' },
       ];
     }

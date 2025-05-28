@@ -18,7 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { showSuccessToast, showErrorToast } from '@/lib/errors';
 import { USER_TYPES } from '@/lib/constants';
-import { TrainerAPI, TrainerSubscriptionTier, CreateTrainerSubscriptionData } from '@/lib/api';
+import { TrainerAPI, TrainerSubscriptionTier, CreateTrainerSubscriptionData } from '@/lib/api/trainer';
 
 // Schema
 const createSubscriptionSchema = z.object({

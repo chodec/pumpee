@@ -12,7 +12,6 @@ import {
   CreateMenuPlanData 
 } from '../types';
 
-// Additional types for trainer subscription tiers
 export interface TrainerSubscriptionTier {
   id: string;
   trainer_id: string;

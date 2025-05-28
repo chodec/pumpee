@@ -1,9 +1,10 @@
-// src/pages/trainer/pages/TrainerDashboard.tsx - Refactored without UI changes
+// src/pages/trainer/pages/TrainerDashboard.tsx - Updated with Subscription Plans card
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "@/components/organisms/DashboardLayout";
 import SubscriptionBox from "@/components/features/trainer/SubscriptionBox";
 import MenuPlansOverview from "@/components/features/trainer/MenuPlansOverview";
 import WorkoutsOverview from "@/components/features/trainer/WorkoutsOverview";
+import TrainerSubscriptionPlansOverview from "@/components/features/trainer/TrainerSubscriptionPlansOverview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/organisms/Card";
 import { Button } from "@/components/atoms/Button";
 import LoadingSpinner from "@/components/atoms/LoadingSpinner";
@@ -99,7 +100,7 @@ export default function TrainerDashboard() {
   );
 
   const renderOverviewCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div className="col-span-1">
         <SubscriptionBox />
       </div>
@@ -108,6 +109,9 @@ export default function TrainerDashboard() {
       </div>
       <div className="col-span-1">
         <MenuPlansOverview />
+      </div>
+      <div className="col-span-1">
+        <TrainerSubscriptionPlansOverview />
       </div>
     </div>
   );
