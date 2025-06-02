@@ -1,4 +1,3 @@
-// src/components/features/trainer/SubscriptionBox.tsx - Refactored Version
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/organisms/Card';
@@ -7,19 +6,11 @@ import LoadingSpinner from '@/components/atoms/LoadingSpinner';
 import Icon from '@/components/atoms/Icon';
 import { useSubscription, formatPrice, calculateUsageStatus } from '@/pages/features/trainer/hooks/useSubscription';
 
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
-
 interface PlanStyle {
   color: string;
   bgColor: string;
   iconColor: string;
 }
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
 
 const PLAN_STYLES: Record<string, PlanStyle> = {
   Basic: {
@@ -43,10 +34,6 @@ const PLAN_STYLES: Record<string, PlanStyle> = {
     iconColor: 'text-[#7690cd]'
   }
 };
-
-// ============================================================================
-// COMPONENT PARTS
-// ============================================================================
 
 const LoadingState: React.FC = () => (
   <Card className="h-full">
@@ -72,12 +59,35 @@ const ErrorState: React.FC<ErrorStateProps> = ({ onRetry }) => (
       </CardTitle>
     </CardHeader>
     
-    <CardContent className="flex flex-col flex-grow">
-      <div className="space-y-6 flex-grow">
-        <CurrentPlanSection planName="Basic" price="Free" />
-        <ClientUsageSection clientCount={0} clientLimit={10} usagePercentage={0} />
+    <CardContent className="space-y-6">
+      <div className="text-center p-4 bg-gray-50 rounded-lg">
+        <div className="mb-2">
+          <span className="text-sm text-gray-500">Current Plan</span>
+        </div>
+        <div className="text-xl font-bold text-gray-600 mb-1">Basic</div>
+        <div className="text-lg font-semibold text-gray-700">Free</div>
       </div>
-      <ActionButton />
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Client Usage</span>
+          <span className="text-sm font-semibold text-gray-900">0 / 10</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="h-2.5 rounded-full bg-gray-400" style={{ width: '0%' }} />
+        </div>
+      </div>
+
+      <div className="pt-2">
+        <Link to="/trainer/subscriptions" className="block">
+          <Button variant="blue" size="full" className="group">
+            <span>Manage Subscription</span>
+            <svg className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Button>
+        </Link>
+      </div>
     </CardContent>
   </Card>
 );
@@ -181,28 +191,6 @@ const UsageWarning: React.FC<UsageWarningProps> = ({ status, message }) => {
   );
 };
 
-const ActionButton: React.FC = () => (
-  <div className="mt-auto pt-4">
-    <Link to="/trainer/subscriptions" className="block">
-      <Button variant="blue" size="full" className="group">
-        <span>Manage Subscription</span>
-        <svg 
-          className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </Button>
-    </Link>
-  </div>
-);
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
 const SubscriptionBox: React.FC = () => {
   const { 
     subscription, 
@@ -214,7 +202,6 @@ const SubscriptionBox: React.FC = () => {
     refetch
   } = useSubscription();
 
-  // Get plan style based on subscription name
   const getPlanStyle = (planName: string): PlanStyle => {
     return PLAN_STYLES[planName] || PLAN_STYLES.Basic;
   };
@@ -231,7 +218,7 @@ const SubscriptionBox: React.FC = () => {
   const formattedPrice = formatPrice(subscription?.price, subscription?.billing_cycle);
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg">
           <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${planStyle.bgColor} mr-3`}>
@@ -241,22 +228,29 @@ const SubscriptionBox: React.FC = () => {
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="flex flex-col flex-grow">
-        <div className="space-y-6 flex-grow">
-          <CurrentPlanSection 
-            planName={subscription?.name || 'Basic'}
-            price={formattedPrice}
-            style={planStyle}
-          />
-          
-          <ClientUsageSection 
-            clientCount={clientCount}
-            clientLimit={clientLimit}
-            usagePercentage={usagePercentage}
-          />
-        </div>
+      <CardContent className="space-y-6">
+        <CurrentPlanSection 
+          planName={subscription?.name || 'Basic'}
+          price={formattedPrice}
+          style={planStyle}
+        />
         
-        <ActionButton />
+        <ClientUsageSection 
+          clientCount={clientCount}
+          clientLimit={clientLimit}
+          usagePercentage={usagePercentage}
+        />
+
+        <div className="pt-2">
+          <Link to="/trainer/subscriptions" className="block">
+            <Button variant="blue" size="full" className="group">
+              <span>Manage Subscription</span>
+              <svg className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Button>
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );
